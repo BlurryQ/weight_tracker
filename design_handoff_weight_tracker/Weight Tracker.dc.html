@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="./weight-data.js"></script>
+<style>
+body{margin:0;background:#f0eee9;font-family:"Instrument Sans",system-ui,sans-serif}
+a{color:#2a78d6}a:hover{color:#1a5aa8}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 6px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-brief{margin:0 0 26px;max-width:760px;font:400 12.5px/1.65 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-opts{display:flex;flex-wrap:wrap;gap:34px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:26px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+</style></helmet>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Home screen — three directions</span></div>
+<p class="dv-brief">Built on your real log (317 daily entries, Oct 2025 → Aug 2026). Hero is the 7-day average; 14d / 30d / week-over-week sit under it. Phase target instead of a goal — Cut at −1.0 lb/week, with an on-pace read. Chart is weekly averages only, with a least-squares fit extended six weeks forward and markers where you tagged <em>Start cut</em> and <em>Deload</em>. All three are live: tap the log button, punch in weight then bf%, and every number and the chart recompute. Today is set to Tue 25 Aug (unlogged) so the entry flow has something to do.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a"><div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Ledger — spreadsheet lineage, dense, monospace figures</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ 390 }}" height="{{ 844 }}" hint-size="390px,844px">
+<div style="position:relative;height:844px;background:#faf9f6;overflow:hidden">
+<div style="position:absolute;inset:0;display:flex;flex-direction:column;padding:62px 22px 0;box-sizing:border-box;overflow-y:auto;scrollbar-width:none">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.06em;color:#8b877e;text-transform:uppercase">
+    <span>Tue 25 Aug</span><span style="color:#1a1917">Cut · wk 4</span>
+  </div>
+  <div style="margin-top:26px;display:flex;align-items:flex-end;gap:10px">
+    <div style="font:500 62px/0.85 'IBM Plex Mono',monospace;letter-spacing:-.03em;color:#1a1917">{{ c.a7 }}</div>
+    <div style="font:500 13px/1 'IBM Plex Mono',monospace;color:#8b877e;padding-bottom:4px">lbs</div>
+  </div>
+  <div style="margin-top:9px;display:flex;gap:8px;align-items:center;font:400 12px/1 'IBM Plex Mono',monospace;color:#8b877e">
+    <span style="letter-spacing:.06em;text-transform:uppercase">7-day avg</span>
+    <span style="width:1px;height:10px;background:#dcd8ce"></span>
+    <span style="color:{{ c.wowColor }}">{{ c.wow }} vs prev 7</span>
+    <span style="width:1px;height:10px;background:#dcd8ce"></span>
+    <span>{{ c.bf7 }}% bf</span>
+  </div>
+  <div style="margin-top:22px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:#e6e2d8;border:1px solid #e6e2d8">
+    <div style="background:#fff;padding:11px 12px 12px">
+      <div style="font:400 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#a19c92;text-transform:uppercase">14-day</div>
+      <div style="margin-top:7px;font:500 21px/1 'IBM Plex Mono',monospace;color:#1a1917">{{ c.a14 }}</div>
+    </div>
+    <div style="background:#fff;padding:11px 12px 12px">
+      <div style="font:400 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#a19c92;text-transform:uppercase">30-day</div>
+      <div style="margin-top:7px;font:500 21px/1 'IBM Plex Mono',monospace;color:#1a1917">{{ c.a30 }}</div>
+    </div>
+    <div style="background:#fff;padding:11px 12px 12px">
+      <div style="font:400 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#a19c92;text-transform:uppercase">Rate</div>
+      <div style="margin-top:7px;font:500 21px/1 'IBM Plex Mono',monospace;color:#1a1917">{{ c.rate }}</div>
+    </div>
+  </div>
+  <div style="margin-top:14px;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e6e2d8;background:#fff">
+    <div style="width:7px;height:7px;border-radius:4px;background:{{ c.paceColor }}"></div>
+    <div style="font:500 11.5px/1.3 'IBM Plex Mono',monospace;color:#1a1917">{{ c.paceLabel }}</div>
+    <div style="margin-left:auto;font:400 10.5px/1.3 'IBM Plex Mono',monospace;color:#8b877e">target −1.0/wk</div>
+  </div>
+  <div style="margin-top:20px;display:flex;justify-content:space-between;align-items:baseline">
+    <div style="font:400 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#a19c92;text-transform:uppercase">Weekly average · lbs</div>
+    <div style="display:flex;gap:4px">
+      <div onClick="{{ c.win4 }}" style="cursor:pointer;padding:3px 8px;font:500 9.5px/1 'IBM Plex Mono',monospace;border:1px solid #e6e2d8;background:{{ c.p4bg }};color:{{ c.p4fg }}">4W</div>
+      <div onClick="{{ c.win8 }}" style="cursor:pointer;padding:3px 8px;font:500 9.5px/1 'IBM Plex Mono',monospace;border:1px solid #e6e2d8;background:{{ c.p8bg }};color:{{ c.p8fg }}">8W</div>
+      <div onClick="{{ c.winAll }}" style="cursor:pointer;padding:3px 8px;font:500 9.5px/1 'IBM Plex Mono',monospace;border:1px solid #e6e2d8;background:{{ c.pAbg }};color:{{ c.pAfg }}">ALL</div>
+    </div>
+  </div>
+  <div style="margin-top:12px;position:relative;height:158px">
+    <sc-for list="{{ c.ch.grid }}" as="g" hint-placeholder-count="4">
+      <div style="position:absolute;left:0;top:{{ g.top }};font:400 9px/1 'IBM Plex Mono',monospace;color:#b5b0a5">{{ g.label }}</div>
+    </sc-for>
+    <sc-for list="{{ c.ch.marks }}" as="m" hint-placeholder-count="2">
+      <div style="position:absolute;left:{{ m.left }};top:140px;font:400 8.5px/1 'IBM Plex Mono',monospace;color:#8b877e;white-space:nowrap">{{ m.label }}</div>
+    </sc-for>
+    <svg width="320" height="136" viewBox="0 0 320 136" style="display:block;position:absolute;left:26px;top:0;overflow:visible">
+      <sc-for list="{{ c.ch.grid }}" as="g" hint-placeholder-count="4">
+        <line x1="0" x2="320" y1="{{ g.y }}" y2="{{ g.y }}" stroke="#eae6dc" stroke-width="1"></line>
+      </sc-for>
+      <sc-for list="{{ c.ch.marks }}" as="m" hint-placeholder-count="2">
+        <line x1="{{ m.x }}" x2="{{ m.x }}" y1="4" y2="134" stroke="#c9c3b6" stroke-width="1" stroke-dasharray="2 3"></line>
+      </sc-for>
+      <path d="{{ c.ch.fit }}" fill="none" stroke="#c05a45" stroke-width="1.2" stroke-dasharray="4 3"></path>
+      <path d="{{ c.ch.line }}" fill="none" stroke="#1a1917" stroke-width="1.6"></path>
+      <path d="{{ c.ch.proj }}" fill="none" stroke="#c05a45" stroke-width="1.6" stroke-dasharray="1 4" stroke-linecap="round"></path>
+      <circle cx="{{ c.ch.lastX }}" cy="{{ c.ch.lastY }}" r="3" fill="#1a1917"></circle>
+      <circle cx="{{ c.ch.projX }}" cy="{{ c.ch.projY }}" r="3" fill="#c05a45"></circle>
+    </svg>
+  </div>
+  <div style="margin-top:16px;font:400 11.5px/1.5 'IBM Plex Mono',monospace;color:#6d685f">
+    At {{ c.rate }}/wk → <span style="color:#c05a45">{{ c.projW }} lbs</span> by {{ c.projDate }}
+  </div>
+  <div style="margin-top:16px;border-top:1px solid #e6e2d8">
+    <sc-for list="{{ c.recent }}" as="r" hint-placeholder-count="4">
+      <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f0ece2;font:400 11px/1 'IBM Plex Mono',monospace;color:#1a1917">
+        <span style="color:#8b877e;width:78px">{{ r.wc }}</span>
+        <span style="width:52px">{{ r.w }}</span>
+        <span style="width:46px;color:#8b877e">{{ r.bf }}%</span>
+        <span style="width:44px;text-align:right;color:{{ r.varColor }}">{{ r.var }}</span>
+      </div>
+    </sc-for>
+  </div>
+<div style="position:sticky;bottom:0;margin-top:auto;padding:14px 0 42px;background:#faf9f6">
+  <sc-if value="{{ c.flash1a }}" hint-placeholder-val="{{ false }}">
+    <div style="margin-bottom:8px;text-align:center;font:400 10.5px/1 'IBM Plex Mono',monospace;color:#4e7a52">{{ c.flash1a }}</div>
+  </sc-if>
+  <div onClick="{{ c.open1a }}" style="cursor:pointer;background:#1a1917;color:#faf9f6;text-align:center;padding:16px 0;font:500 12.5px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase" style-hover="background:#33302b">Log Tuesday</div>
+</div>
+</div>
+<sc-if value="{{ c.sheet1a }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;inset:0;background:rgba(26,25,23,.34);z-index:80" onClick="{{ c.close }}"></div>
+</sc-if>
+<sc-if value="{{ c.sheet1a }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;left:0;right:0;bottom:0;z-index:90;background:#faf9f6;border-top:1px solid #ddd8cd;padding:18px 22px 42px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#8b877e;text-transform:uppercase">Tue 25 Aug</div>
+      <div onClick="{{ c.close }}" style="cursor:pointer;font:400 11px/1 'IBM Plex Mono',monospace;color:#8b877e">Cancel</div>
+    </div>
+    <div style="margin-top:16px;display:grid;grid-template-columns:1.3fr 1fr;gap:1px;background:#e6e2d8;border:1px solid #e6e2d8">
+      <div onClick="{{ c.selW }}" style="cursor:pointer;background:#fff;padding:12px 14px 14px;border-bottom:3px solid {{ c.underW }}">
+        <div style="font:400 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#a19c92;text-transform:uppercase">Weight lbs</div>
+        <div style="margin-top:8px;font:500 30px/1 'IBM Plex Mono',monospace;color:{{ c.wColor }}">{{ c.wShow }}</div>
+      </div>
+      <div onClick="{{ c.selBf }}" style="cursor:pointer;background:#fff;padding:12px 14px 14px;border-bottom:3px solid {{ c.underBf }}">
+        <div style="font:400 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#a19c92;text-transform:uppercase">Body fat %</div>
+        <div style="margin-top:8px;font:500 30px/1 'IBM Plex Mono',monospace;color:{{ c.bfColor }}">{{ c.bfShow }}</div>
+      </div>
+    </div>
+    <div style="margin-top:8px;font:400 10.5px/1 'IBM Plex Mono',monospace;color:#a19c92">Yesterday {{ c.yWeight }} lbs · {{ c.yBf }}%</div>
+    <div style="margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+      <sc-for list="{{ c.keys }}" as="k" hint-placeholder-count="12">
+        <div onClick="{{ k.tap }}" style="cursor:pointer;background:#fff;border:1px solid #e6e2d8;text-align:center;padding:15px 0;font:500 20px/1 'IBM Plex Mono',monospace;color:#1a1917" style-hover="background:#f1ede3">{{ k.label }}</div>
+      </sc-for>
+    </div>
+    <div onClick="{{ c.save }}" style="margin-top:12px;cursor:pointer;background:#1a1917;color:#faf9f6;text-align:center;padding:16px 0;font:500 12.5px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase" style-hover="background:#33302b">Save entry</div>
+  </div>
+</sc-if>
+</div>
+</x-import>
+</div>
+
+<div class="dv-opt" id="1b"><div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Instrument — dark, condensed numerals, pace as a gauge</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ 390 }}" height="{{ 844 }}" dark="{{ true }}" hint-size="390px,844px">
+<div style="position:relative;height:844px;background:#0b0c0b;overflow:hidden">
+<div style="position:absolute;inset:0;display:flex;flex-direction:column;padding:60px 20px 0;box-sizing:border-box;overflow-y:auto;scrollbar-width:none">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <div style="display:flex;align-items:center;gap:7px;padding:5px 10px;border-radius:999px;background:oklch(0.82 0.17 128 / .13);border:1px solid oklch(0.82 0.17 128 / .3)">
+      <div style="width:5px;height:5px;border-radius:3px;background:oklch(0.82 0.17 128)"></div>
+      <span style="font:600 10.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.14em;color:oklch(0.86 0.14 128);text-transform:uppercase">Cut · week 4</span>
+    </div>
+    <span style="font:500 11px/1 'IBM Plex Mono',monospace;color:#5c6159">25.08</span>
+  </div>
+  <div style="margin-top:30px;display:flex;align-items:flex-start;justify-content:space-between">
+    <div>
+      <div style="font:600 9.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.2em;color:#5c6159;text-transform:uppercase">7-day average</div>
+      <div style="margin-top:8px;display:flex;align-items:flex-end;gap:8px">
+        <div style="font:700 84px/0.8 'Barlow Condensed',sans-serif;letter-spacing:-.01em;color:#f2f4ef">{{ c.a7 }}</div>
+        <div style="font:600 14px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;color:#5c6159;padding-bottom:8px;text-transform:uppercase">lbs</div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:12px;font:500 11.5px/1 'IBM Plex Mono',monospace">
+        <span style="color:{{ c.wowColorDark }}">{{ c.wow }} w/w</span>
+        <span style="color:#5c6159">{{ c.bf7 }}% bf</span>
+      </div>
+    </div>
+    <div style="position:relative;width:74px;height:74px;flex:none">
+      <svg width="74" height="74" viewBox="0 0 74 74">
+        <circle cx="37" cy="37" r="31" fill="none" stroke="#1c201b" stroke-width="7"></circle>
+        <circle cx="37" cy="37" r="31" fill="none" stroke="{{ c.paceColorDark }}" stroke-width="7" stroke-linecap="round" stroke-dasharray="{{ c.paceDash }}" transform="rotate(-90 37 37)"></circle>
+      </svg>
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+        <div style="font:700 17px/1 'Barlow Condensed',sans-serif;color:#f2f4ef">{{ c.pacePct }}</div>
+        <div style="font:600 7.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.14em;color:#5c6159;text-transform:uppercase">of pace</div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:26px;display:flex;gap:8px">
+    <div style="flex:1;padding:13px 13px 14px;border-radius:14px;background:#131513">
+      <div style="font:600 9px/1 'Barlow Condensed',sans-serif;letter-spacing:.16em;color:#5c6159;text-transform:uppercase">14 day</div>
+      <div style="margin-top:8px;font:700 26px/1 'Barlow Condensed',sans-serif;color:#e7eae3">{{ c.a14 }}</div>
+    </div>
+    <div style="flex:1;padding:13px 13px 14px;border-radius:14px;background:#131513">
+      <div style="font:600 9px/1 'Barlow Condensed',sans-serif;letter-spacing:.16em;color:#5c6159;text-transform:uppercase">30 day</div>
+      <div style="margin-top:8px;font:700 26px/1 'Barlow Condensed',sans-serif;color:#e7eae3">{{ c.a30 }}</div>
+    </div>
+    <div style="flex:1;padding:13px 13px 14px;border-radius:14px;background:#131513">
+      <div style="font:600 9px/1 'Barlow Condensed',sans-serif;letter-spacing:.16em;color:#5c6159;text-transform:uppercase">Rate/wk</div>
+      <div style="margin-top:8px;font:700 26px/1 'Barlow Condensed',sans-serif;color:oklch(0.82 0.17 128)">{{ c.rate }}</div>
+    </div>
+  </div>
+  <div style="margin-top:24px;display:flex;justify-content:space-between;align-items:center">
+    <span style="font:600 9.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.2em;color:#5c6159;text-transform:uppercase">Trend & projection</span>
+    <div style="display:flex;gap:3px;padding:3px;border-radius:999px;background:#131513">
+      <div onClick="{{ c.win4 }}" style="cursor:pointer;padding:4px 11px;border-radius:999px;font:600 9.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;background:{{ c.d4bg }};color:{{ c.d4fg }}">4W</div>
+      <div onClick="{{ c.win8 }}" style="cursor:pointer;padding:4px 11px;border-radius:999px;font:600 9.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;background:{{ c.d8bg }};color:{{ c.d8fg }}">8W</div>
+      <div onClick="{{ c.winAll }}" style="cursor:pointer;padding:4px 11px;border-radius:999px;font:600 9.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;background:{{ c.dAbg }};color:{{ c.dAfg }}">ALL</div>
+    </div>
+  </div>
+  <div style="margin-top:14px;position:relative;height:158px">
+    <sc-for list="{{ c.ch.grid }}" as="g" hint-placeholder-count="4">
+      <div style="position:absolute;left:0;top:{{ g.top }};font:500 9px/1 'IBM Plex Mono',monospace;color:#4a4f47">{{ g.label }}</div>
+    </sc-for>
+    <sc-for list="{{ c.ch.marks }}" as="m" hint-placeholder-count="2">
+      <div style="position:absolute;left:{{ m.left }};top:140px;font:500 8.5px/1 'IBM Plex Mono',monospace;color:#5c6159;white-space:nowrap">{{ m.label }}</div>
+    </sc-for>
+    <svg width="320" height="136" viewBox="0 0 320 136" style="display:block;position:absolute;left:26px;top:0;overflow:visible">
+      <defs>
+        <linearGradient id="gfade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="oklch(0.82 0.17 128)" stop-opacity="0.22"></stop>
+          <stop offset="100%" stop-color="oklch(0.82 0.17 128)" stop-opacity="0"></stop>
+        </linearGradient>
+      </defs>
+      <sc-for list="{{ c.ch.grid }}" as="g" hint-placeholder-count="4">
+        <line x1="0" x2="320" y1="{{ g.y }}" y2="{{ g.y }}" stroke="#191c19" stroke-width="1"></line>
+      </sc-for>
+      <sc-for list="{{ c.ch.marks }}" as="m" hint-placeholder-count="2">
+        <line x1="{{ m.x }}" x2="{{ m.x }}" y1="4" y2="134" stroke="#2b302a" stroke-width="1"></line>
+      </sc-for>
+      <path d="{{ c.ch.area }}" fill="url(#gfade)"></path>
+      <path d="{{ c.ch.bfLine }}" fill="none" stroke="#3d4a3a" stroke-width="1.2"></path>
+      <path d="{{ c.ch.fit }}" fill="none" stroke="#7a8474" stroke-width="1" stroke-dasharray="5 4"></path>
+      <path d="{{ c.ch.line }}" fill="none" stroke="oklch(0.82 0.17 128)" stroke-width="2.1" stroke-linejoin="round"></path>
+      <path d="{{ c.ch.proj }}" fill="none" stroke="oklch(0.82 0.17 128)" stroke-width="2" stroke-dasharray="2 5" stroke-linecap="round" opacity="0.55"></path>
+      <circle cx="{{ c.ch.lastX }}" cy="{{ c.ch.lastY }}" r="4.5" fill="oklch(0.82 0.17 128)"></circle>
+      <circle cx="{{ c.ch.projX }}" cy="{{ c.ch.projY }}" r="3.5" fill="#0b0c0b" stroke="oklch(0.82 0.17 128)" stroke-width="1.6"></circle>
+    </svg>
+  </div>
+  <div style="margin-top:16px;padding:14px 15px;border-radius:14px;background:#131513;display:flex;align-items:center;gap:14px">
+    <div>
+      <div style="font:600 9px/1 'Barlow Condensed',sans-serif;letter-spacing:.16em;color:#5c6159;text-transform:uppercase">Projected · 6 weeks</div>
+      <div style="margin-top:7px;font:700 30px/1 'Barlow Condensed',sans-serif;color:#f2f4ef">{{ c.projW }}<span style="font-size:13px;letter-spacing:.1em;color:#5c6159"> LBS</span></div>
+    </div>
+    <div style="margin-left:auto;text-align:right;font:500 10.5px/1.6 'IBM Plex Mono',monospace;color:#7a8474">{{ c.projDate }}<br>{{ c.paceLabel }}</div>
+  </div>
+  <div style="margin-top:18px">
+    <div style="font:600 9.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.2em;color:#5c6159;text-transform:uppercase">Last three weeks</div>
+    <sc-for list="{{ c.recent3 }}" as="r" hint-placeholder-count="3">
+      <div style="display:flex;align-items:baseline;gap:10px;padding:10px 0;border-bottom:1px solid #171a17">
+        <span style="font:500 10.5px/1 'IBM Plex Mono',monospace;color:#5c6159;width:74px">{{ r.wc }}</span>
+        <span style="font:700 17px/1 'Barlow Condensed',sans-serif;color:#e7eae3;width:50px">{{ r.w }}</span>
+        <span style="font:500 10.5px/1 'IBM Plex Mono',monospace;color:#5c6159">{{ r.bf }}%</span>
+        <span style="margin-left:auto;font:500 11px/1 'IBM Plex Mono',monospace;color:{{ r.varColor }}">{{ r.var }}</span>
+      </div>
+    </sc-for>
+  </div>
+<div style="position:sticky;bottom:0;margin-top:auto;padding:14px 0 40px;background:#0b0c0b">
+  <sc-if value="{{ c.flash1b }}" hint-placeholder-val="{{ false }}">
+    <div style="margin-bottom:10px;text-align:center;font:500 10.5px/1 'IBM Plex Mono',monospace;color:oklch(0.82 0.17 128)">{{ c.flash1b }}</div>
+  </sc-if>
+  <div onClick="{{ c.open1b }}" style="cursor:pointer;border-radius:999px;background:oklch(0.82 0.17 128);color:#0b0c0b;text-align:center;padding:17px 0;font:700 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.18em;text-transform:uppercase" style-hover="background:oklch(0.88 0.17 128)">Log weigh-in</div>
+</div>
+</div>
+<sc-if value="{{ c.sheet1b }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;inset:0;background:rgba(0,0,0,.6);z-index:80" onClick="{{ c.close }}"></div>
+</sc-if>
+<sc-if value="{{ c.sheet1b }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;left:0;right:0;bottom:0;z-index:90;background:#131513;border-radius:26px 26px 0 0;padding:16px 20px 40px">
+    <div style="width:38px;height:4px;border-radius:3px;background:#2b302a;margin:0 auto 16px"></div>
+    <div style="display:flex;gap:8px">
+      <div onClick="{{ c.selW }}" style="flex:1.3;cursor:pointer;padding:13px 14px 15px;border-radius:14px;background:#0b0c0b;border:1.5px solid {{ c.ringW }}">
+        <div style="font:600 9px/1 'Barlow Condensed',sans-serif;letter-spacing:.16em;color:#5c6159;text-transform:uppercase">Weight lbs</div>
+        <div style="margin-top:7px;font:700 34px/1 'Barlow Condensed',sans-serif;color:{{ c.wColorDark }}">{{ c.wShow }}</div>
+      </div>
+      <div onClick="{{ c.selBf }}" style="flex:1;cursor:pointer;padding:13px 14px 15px;border-radius:14px;background:#0b0c0b;border:1.5px solid {{ c.ringBf }}">
+        <div style="font:600 9px/1 'Barlow Condensed',sans-serif;letter-spacing:.16em;color:#5c6159;text-transform:uppercase">Body fat %</div>
+        <div style="margin-top:7px;font:700 34px/1 'Barlow Condensed',sans-serif;color:{{ c.bfColorDark }}">{{ c.bfShow }}</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;font:500 10.5px/1 'IBM Plex Mono',monospace;color:#4a4f47">yesterday {{ c.yWeight }} · {{ c.yBf }}%</div>
+    <div style="margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:9px">
+      <sc-for list="{{ c.keys }}" as="k" hint-placeholder-count="12">
+        <div onClick="{{ k.tap }}" style="cursor:pointer;border-radius:14px;background:#1c201b;text-align:center;padding:16px 0;font:700 22px/1 'Barlow Condensed',sans-serif;color:#e7eae3" style-hover="background:#272c26">{{ k.label }}</div>
+      </sc-for>
+    </div>
+    <div onClick="{{ c.save }}" style="margin-top:12px;cursor:pointer;border-radius:999px;background:oklch(0.82 0.17 128);color:#0b0c0b;text-align:center;padding:17px 0;font:700 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.18em;text-transform:uppercase" style-hover="background:oklch(0.88 0.17 128)">Save</div>
+  </div>
+</sc-if>
+</div>
+</x-import>
+</div>
+
+<div class="dv-opt" id="1c"><div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Editorial — serif figures, sentence-form projection, quiet</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ 390 }}" height="{{ 844 }}" hint-size="390px,844px">
+<div style="position:relative;height:844px;background:#f4f1ea;overflow:hidden">
+<div style="position:absolute;inset:0;display:flex;flex-direction:column;padding:64px 26px 0;box-sizing:border-box;overflow-y:auto;scrollbar-width:none">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:12px;border-bottom:1px solid #ddd6c8">
+    <div style="font:400 15px/1 'Instrument Serif',serif;color:#23201b">Tuesday, 25 August</div>
+    <div style="font:400 10px/1 'Instrument Sans',sans-serif;letter-spacing:.14em;color:#8f887a;text-transform:uppercase">Cut, week four</div>
+  </div>
+  <div style="margin-top:34px;text-align:center">
+    <div style="font:400 11px/1 'Instrument Sans',sans-serif;letter-spacing:.18em;color:#8f887a;text-transform:uppercase">Seven-day average</div>
+    <div style="margin-top:14px;font:400 78px/0.86 'Instrument Serif',serif;color:#23201b">{{ c.a7 }}</div>
+    <div style="margin-top:12px;font:400 13.5px/1 'Instrument Sans',sans-serif;color:#6b6459">
+      <span style="color:{{ c.wowColorWarm }}">{{ c.wow }}</span> on the week · {{ c.bf7 }}% body fat
+    </div>
+  </div>
+  <div style="margin-top:32px;display:flex;border-top:1px solid #ddd6c8;border-bottom:1px solid #ddd6c8">
+    <div style="flex:1;padding:15px 0;text-align:center;border-right:1px solid #ddd6c8">
+      <div style="font:400 9.5px/1 'Instrument Sans',sans-serif;letter-spacing:.16em;color:#8f887a;text-transform:uppercase">Fortnight</div>
+      <div style="margin-top:9px;font:400 26px/1 'Instrument Serif',serif;color:#23201b">{{ c.a14 }}</div>
+    </div>
+    <div style="flex:1;padding:15px 0;text-align:center;border-right:1px solid #ddd6c8">
+      <div style="font:400 9.5px/1 'Instrument Sans',sans-serif;letter-spacing:.16em;color:#8f887a;text-transform:uppercase">Month</div>
+      <div style="margin-top:9px;font:400 26px/1 'Instrument Serif',serif;color:#23201b">{{ c.a30 }}</div>
+    </div>
+    <div style="flex:1;padding:15px 0;text-align:center">
+      <div style="font:400 9.5px/1 'Instrument Sans',sans-serif;letter-spacing:.16em;color:#8f887a;text-transform:uppercase">Per week</div>
+      <div style="margin-top:9px;font:400 26px/1 'Instrument Serif',serif;color:{{ c.paceColorWarm }}">{{ c.rate }}</div>
+    </div>
+  </div>
+  <div style="margin-top:26px;display:flex;justify-content:space-between;align-items:baseline">
+    <div style="font:400 italic 15px/1 'Instrument Serif',serif;color:#23201b">Weekly averages</div>
+    <div style="display:flex;gap:14px">
+      <div onClick="{{ c.win4 }}" style="cursor:pointer;font:400 11px/1 'Instrument Sans',sans-serif;color:{{ c.w4fg }};border-bottom:1px solid {{ c.w4bd }};padding-bottom:2px">4 wk</div>
+      <div onClick="{{ c.win8 }}" style="cursor:pointer;font:400 11px/1 'Instrument Sans',sans-serif;color:{{ c.w8fg }};border-bottom:1px solid {{ c.w8bd }};padding-bottom:2px">8 wk</div>
+      <div onClick="{{ c.winAll }}" style="cursor:pointer;font:400 11px/1 'Instrument Sans',sans-serif;color:{{ c.wAfg }};border-bottom:1px solid {{ c.wAbd }};padding-bottom:2px">All</div>
+    </div>
+  </div>
+  <div style="margin-top:16px;position:relative;height:158px">
+    <sc-for list="{{ c.ch.grid }}" as="g" hint-placeholder-count="4">
+      <div style="position:absolute;left:0;top:{{ g.top }};font:400 9.5px/1 'Instrument Sans',sans-serif;color:#a89f8e">{{ g.label }}</div>
+    </sc-for>
+    <sc-for list="{{ c.ch.marks }}" as="m" hint-placeholder-count="2">
+      <div style="position:absolute;left:{{ m.left }};top:141px;font:400 9px/1 'Instrument Sans',sans-serif;color:#a06b4e;white-space:nowrap">{{ m.label }}</div>
+    </sc-for>
+    <svg width="320" height="136" viewBox="0 0 320 136" style="display:block;position:absolute;left:26px;top:0;overflow:visible">
+      <sc-for list="{{ c.ch.marks }}" as="m" hint-placeholder-count="2">
+        <line x1="{{ m.x }}" x2="{{ m.x }}" y1="4" y2="134" stroke="#c9a68f" stroke-width="1"></line>
+      </sc-for>
+      <line x1="0" x2="320" y1="134" y2="134" stroke="#ddd6c8" stroke-width="1"></line>
+      <path d="{{ c.ch.fit }}" fill="none" stroke="#bdb3a1" stroke-width="0.9"></path>
+      <path d="{{ c.ch.line }}" fill="none" stroke="#23201b" stroke-width="1.3"></path>
+      <path d="{{ c.ch.proj }}" fill="none" stroke="#a06b4e" stroke-width="1.3" stroke-dasharray="3 3"></path>
+      <circle cx="{{ c.ch.lastX }}" cy="{{ c.ch.lastY }}" r="2.6" fill="#23201b"></circle>
+      <circle cx="{{ c.ch.projX }}" cy="{{ c.ch.projY }}" r="2.6" fill="#a06b4e"></circle>
+    </svg>
+  </div>
+  <div style="margin-top:22px;font:400 17px/1.5 'Instrument Serif',serif;color:#23201b;text-wrap:pretty">
+    Holding {{ c.rate }} a week, you reach <span style="color:#a06b4e">{{ c.projW }} lbs</span> by {{ c.projDate }}. {{ c.paceSentence }}
+  </div>
+  <div style="margin-top:24px;border-top:1px solid #ddd6c8">
+    <sc-for list="{{ c.recent3 }}" as="r" hint-placeholder-count="3">
+      <div style="display:flex;align-items:baseline;gap:12px;padding:11px 0;border-bottom:1px solid #e7e1d5">
+        <span style="font:400 11px/1 'Instrument Sans',sans-serif;color:#8f887a;width:72px">{{ r.wc }}</span>
+        <span style="font:400 18px/1 'Instrument Serif',serif;color:#23201b;width:52px">{{ r.w }}</span>
+        <span style="font:400 11px/1 'Instrument Sans',sans-serif;color:#8f887a">{{ r.bf }}%</span>
+        <span style="margin-left:auto;font:400 12px/1 'Instrument Sans',sans-serif;color:{{ r.varColor }}">{{ r.var }}</span>
+      </div>
+    </sc-for>
+  </div>
+<div style="position:sticky;bottom:0;margin-top:auto;padding:16px 0 44px;background:#f4f1ea">
+  <sc-if value="{{ c.flash1c }}" hint-placeholder-val="{{ false }}">
+    <div style="margin-bottom:10px;text-align:center;font:400 11.5px/1 'Instrument Sans',sans-serif;color:#5c7a58">{{ c.flash1c }}</div>
+  </sc-if>
+  <div onClick="{{ c.open1c }}" style="cursor:pointer;text-align:center;padding:15px 0;border:1px solid #23201b;font:400 16px/1 'Instrument Serif',serif;color:#23201b" style-hover="background:#23201b;color:#f4f1ea">Log today's weigh-in</div>
+</div>
+</div>
+<sc-if value="{{ c.sheet1c }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;inset:0;background:rgba(35,32,27,.28);z-index:80" onClick="{{ c.close }}"></div>
+</sc-if>
+<sc-if value="{{ c.sheet1c }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;left:0;right:0;bottom:0;z-index:90;background:#f4f1ea;padding:20px 26px 44px;box-shadow:0 -18px 40px rgba(35,32,27,.14)">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:12px;border-bottom:1px solid #ddd6c8">
+      <div style="font:400 15px/1 'Instrument Serif',serif;color:#23201b">This morning</div>
+      <div onClick="{{ c.close }}" style="cursor:pointer;font:400 11.5px/1 'Instrument Sans',sans-serif;color:#8f887a">Dismiss</div>
+    </div>
+    <div style="margin-top:18px;display:flex;align-items:flex-end;gap:22px">
+      <div onClick="{{ c.selW }}" style="cursor:pointer;flex:1.2;border-bottom:1.5px solid {{ c.underWarmW }};padding-bottom:8px">
+        <div style="font:400 9.5px/1 'Instrument Sans',sans-serif;letter-spacing:.16em;color:#8f887a;text-transform:uppercase">Weight</div>
+        <div style="margin-top:9px;font:400 38px/1 'Instrument Serif',serif;color:{{ c.wColorWarm }}">{{ c.wShow }}</div>
+      </div>
+      <div onClick="{{ c.selBf }}" style="cursor:pointer;flex:1;border-bottom:1.5px solid {{ c.underWarmBf }};padding-bottom:8px">
+        <div style="font:400 9.5px/1 'Instrument Sans',sans-serif;letter-spacing:.16em;color:#8f887a;text-transform:uppercase">Body fat</div>
+        <div style="margin-top:9px;font:400 38px/1 'Instrument Serif',serif;color:{{ c.bfColorWarm }}">{{ c.bfShow }}</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;font:400 11.5px/1 'Instrument Sans',sans-serif;color:#a89f8e">Yesterday, {{ c.yWeight }} lbs at {{ c.yBf }}%</div>
+    <div style="margin-top:18px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+      <sc-for list="{{ c.keys }}" as="k" hint-placeholder-count="12">
+        <div onClick="{{ k.tap }}" style="cursor:pointer;text-align:center;padding:14px 0;background:#efebe1;font:400 24px/1 'Instrument Serif',serif;color:#23201b" style-hover="background:#e5e0d3">{{ k.label }}</div>
+      </sc-for>
+    </div>
+    <div onClick="{{ c.save }}" style="margin-top:14px;cursor:pointer;text-align:center;padding:15px 0;background:#23201b;font:400 16px/1 'Instrument Serif',serif;color:#f4f1ea" style-hover="background:#3a352c">Save</div>
+  </div>
+</sc-if>
+</div>
+</x-import>
+</div>
+
+</div>
+<p class="dv-next">Try next: "build out <a class="dv-oid" href="#1b">1b</a> with trends + history screens" · "keep <a class="dv-oid" href="#1a">1a</a>'s week table but <a class="dv-oid" href="#1c">1c</a>'s type" · "show me the phase-switching flow"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1320,&quot;height&quot;:1060}}">
+const TODAY = '2026-08-25';
+const D = 86400000;
+const iso = d => d.toISOString().slice(0, 10);
+const pd = s => new Date(s + 'T00:00:00Z');
+const mondayOf = s => { const d = pd(s); const k = (d.getUTCDay() + 6) % 7; return iso(new Date(d.getTime() - k * D)); };
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const f1 = v => (v == null || isNaN(v)) ? '—' : v.toFixed(1);
+const sgn = v => (v > 0 ? '+' : '−') + Math.abs(v).toFixed(1);
+const W = 320, H = 134, FWD = 6, SHOW = 26;
+
+class Component extends DCLogic {
+  state = { entries: null, sheet: null, field: 'w', wStr: '', bfStr: '', win: 4, flash: null };
+
+  componentDidMount() { this.load(); }
+  componentWillUnmount() { clearTimeout(this.t); clearTimeout(this.f); }
+  load() {
+    if (window.WEIGHT_DATA) this.setState({ entries: window.WEIGHT_DATA.map(e => ({ ...e })) });
+    else this.t = setTimeout(() => this.load(), 80);
+  }
+
+  avg(days, off) {
+    const hi = pd(TODAY).getTime() - (off || 0) * D, lo = hi - (days - 1) * D;
+    const rows = (this.state.entries || []).filter(e => { const t = pd(e.date).getTime(); return t >= lo && t <= hi; });
+    const ws = rows.map(r => r.w).filter(v => v != null);
+    const bs = rows.map(r => r.bf).filter(v => v != null);
+    return {
+      w: ws.length ? ws.reduce((a, b) => a + b, 0) / ws.length : null,
+      bf: bs.length ? bs.reduce((a, b) => a + b, 0) / bs.length : null,
+    };
+  }
+
+  weekly() {
+    const m = new Map();
+    (this.state.entries || []).forEach(e => {
+      const k = mondayOf(e.date);
+      if (!m.has(k)) m.set(k, { monday: k, ws: [], bs: [] });
+      m.get(k).ws.push(e.w);
+      if (e.bf != null) m.get(k).bs.push(e.bf);
+    });
+    return [...m.values()].sort((a, b) => a.monday < b.monday ? -1 : 1).map(v => ({
+      monday: v.monday,
+      w: v.ws.reduce((a, b) => a + b, 0) / v.ws.length,
+      bf: v.bs.length ? v.bs.reduce((a, b) => a + b, 0) / v.bs.length : null,
+    }));
+  }
+
+  fit(pts) {
+    const n = pts.length;
+    if (n < 2) return { a: pts.length ? pts[0].y : 0, b: 0 };
+    const mx = pts.reduce((s, p) => s + p.x, 0) / n, my = pts.reduce((s, p) => s + p.y, 0) / n;
+    let num = 0, den = 0;
+    pts.forEach(p => { num += (p.x - mx) * (p.y - my); den += (p.x - mx) ** 2; });
+    const b = den ? num / den : 0;
+    return { a: my - b * mx, b };
+  }
+
+  setField(f) { this.setState({ field: f }); }
+  tapKey(k) {
+    const f = this.state.field === 'w' ? 'wStr' : 'bfStr';
+    let v = this.state[f];
+    if (k === '⌫') v = v.slice(0, -1);
+    else if (k === '.') { if (!v.includes('.')) v = (v || '0') + '.'; }
+    else if (v.replace('.', '').length < 5) v = v + k;
+    const next = {}; next[f] = v;
+    if (this.state.field === 'w' && v.includes('.') && v.split('.')[1].length >= 1) next.field = 'bf';
+    this.setState(next);
+  }
+  save() {
+    const w = parseFloat(this.state.wStr), bf = parseFloat(this.state.bfStr);
+    if (isNaN(w)) return;
+    const entries = (this.state.entries || []).filter(e => e.date !== TODAY)
+      .concat([{ date: TODAY, w, bf: isNaN(bf) ? null : bf }])
+      .sort((a, b) => a.date < b.date ? -1 : 1);
+    const id = this.state.sheet;
+    this.setState({ entries, sheet: null, wStr: '', bfStr: '', field: 'w', flash: { id, msg: 'Logged ' + w.toFixed(1) + ' lbs' + (isNaN(bf) ? '' : ' · ' + bf.toFixed(1) + '%') } });
+    clearTimeout(this.f);
+    this.f = setTimeout(() => this.setState({ flash: null }), 3200);
+  }
+
+  renderVals() {
+    const s = this.state;
+    const keys = ['1','2','3','4','5','6','7','8','9','.','0','⌫'].map(k => ({ label: k, tap: () => this.tapKey(k) }));
+    const base = {
+      keys,
+      win4: () => this.setState({ win: 4 }), win8: () => this.setState({ win: 8 }), winAll: () => this.setState({ win: 'all' }),
+      close: () => this.setState({ sheet: null }),
+      open1a: () => this.setState({ sheet: '1a', field: 'w', wStr: '', bfStr: '' }),
+      open1b: () => this.setState({ sheet: '1b', field: 'w', wStr: '', bfStr: '' }),
+      open1c: () => this.setState({ sheet: '1c', field: 'w', wStr: '', bfStr: '' }),
+      selW: () => this.setField('w'), selBf: () => this.setField('bf'),
+      save: () => this.save(),
+      sheet1a: s.sheet === '1a', sheet1b: s.sheet === '1b', sheet1c: s.sheet === '1c',
+      flash1a: s.flash && s.flash.id === '1a' ? s.flash.msg : false,
+      flash1b: s.flash && s.flash.id === '1b' ? s.flash.msg : false,
+      flash1c: s.flash && s.flash.id === '1c' ? s.flash.msg : false,
+      wShow: s.wStr || '—', bfShow: s.bfStr || '—',
+      wColor: s.wStr ? '#1a1917' : '#cfc9bd', bfColor: s.bfStr ? '#1a1917' : '#cfc9bd',
+      wColorDark: s.wStr ? '#f2f4ef' : '#3a403a', bfColorDark: s.bfStr ? '#f2f4ef' : '#3a403a',
+      wColorWarm: s.wStr ? '#23201b' : '#c4bcac', bfColorWarm: s.bfStr ? '#23201b' : '#c4bcac',
+      underW: s.field === 'w' ? '#1a1917' : 'transparent', underBf: s.field === 'bf' ? '#1a1917' : 'transparent',
+      ringW: s.field === 'w' ? 'oklch(0.82 0.17 128)' : '#1c201b', ringBf: s.field === 'bf' ? 'oklch(0.82 0.17 128)' : '#1c201b',
+      underWarmW: s.field === 'w' ? '#a06b4e' : '#ddd6c8', underWarmBf: s.field === 'bf' ? '#a06b4e' : '#ddd6c8',
+      p4bg: s.win === 4 ? '#1a1917' : '#fff', p4fg: s.win === 4 ? '#faf9f6' : '#8b877e',
+      p8bg: s.win === 8 ? '#1a1917' : '#fff', p8fg: s.win === 8 ? '#faf9f6' : '#8b877e',
+      pAbg: s.win === 'all' ? '#1a1917' : '#fff', pAfg: s.win === 'all' ? '#faf9f6' : '#8b877e',
+      d4bg: s.win === 4 ? 'oklch(0.82 0.17 128)' : 'transparent', d4fg: s.win === 4 ? '#0b0c0b' : '#5c6159',
+      d8bg: s.win === 8 ? 'oklch(0.82 0.17 128)' : 'transparent', d8fg: s.win === 8 ? '#0b0c0b' : '#5c6159',
+      dAbg: s.win === 'all' ? 'oklch(0.82 0.17 128)' : 'transparent', dAfg: s.win === 'all' ? '#0b0c0b' : '#5c6159',
+      w4fg: s.win === 4 ? '#23201b' : '#a89f8e', w4bd: s.win === 4 ? '#23201b' : 'transparent',
+      w8fg: s.win === 8 ? '#23201b' : '#a89f8e', w8bd: s.win === 8 ? '#23201b' : 'transparent',
+      wAfg: s.win === 'all' ? '#23201b' : '#a89f8e', wAbd: s.win === 'all' ? '#23201b' : 'transparent',
+    };
+    if (!s.entries) return { c: Object.assign(base, { ch: { grid: [], marks: [] }, recent: [] }) };
+
+    const a7 = this.avg(7, 0), a7p = this.avg(7, 7), a14 = this.avg(14, 0), a30 = this.avg(30, 0);
+    const wow = (a7.w != null && a7p.w != null) ? a7.w - a7p.w : 0;
+    const weeks = this.weekly();
+    const show = weeks.slice(-SHOW);
+    const n = show.length, slots = n - 1 + FWD;
+    const k = s.win === 'all' ? n : Math.min(s.win, n);
+    const fitPts = show.slice(n - k).map((v, i) => ({ x: n - k + i, y: v.w }));
+    const { a, b } = this.fit(fitPts);
+    const at = i => a + b * i;
+    const vals = show.map(v => v.w).concat([at(n - 1 + FWD), at(n - k)]);
+    let lo = Math.min(...vals) - 1.2, hi = Math.max(...vals) + 1.2;
+    const X = i => (i / slots) * W;
+    const Y = v => H - ((v - lo) / (hi - lo)) * (H - 8) - 2;
+    const line = show.map((v, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(v.w).toFixed(1)).join(' ');
+    const area = line + ' L' + X(n - 1).toFixed(1) + ' ' + H + ' L0 ' + H + ' Z';
+    const bfVals = show.map(v => v.bf).filter(v => v != null);
+    const bfLo = bfVals.length ? Math.min(...bfVals) - 1 : 0, bfHi = bfVals.length ? Math.max(...bfVals) + 1 : 1;
+    const bfLine = show.filter(v => v.bf != null).map((v, i) => {
+      const gi = show.indexOf(v);
+      return (i ? 'L' : 'M') + X(gi).toFixed(1) + ' ' + (H - ((v.bf - bfLo) / (bfHi - bfLo)) * (H - 8) - 2).toFixed(1);
+    }).join(' ');
+    const proj = 'M' + X(n - 1).toFixed(1) + ' ' + Y(show[n - 1].w).toFixed(1) + ' L' + X(slots).toFixed(1) + ' ' + Y(at(n - 1 + FWD)).toFixed(1);
+    const fitPath = 'M' + X(n - k).toFixed(1) + ' ' + Y(at(n - k)).toFixed(1) + ' L' + X(n - 1).toFixed(1) + ' ' + Y(at(n - 1)).toFixed(1);
+    const grid = [];
+    for (let g = 0; g < 4; g++) {
+      const v = lo + ((hi - lo) * g) / 3;
+      grid.push({ y: Y(v).toFixed(1), top: (Y(v) - 6).toFixed(1) + 'px', label: v.toFixed(0) });
+    }
+    const labels = window.WEIGHT_WEEK_LABELS || [];
+    const marks = labels.filter(l => /cut|deload|bulk|maintain/i.test(l.label))
+      .map(l => ({ l, i: show.findIndex(w => w.monday === l.monday) }))
+      .filter(m => m.i >= 0)
+      .map(m => ({ x: X(m.i).toFixed(1), left: (26 + X(m.i) - 14).toFixed(1) + 'px', label: m.l.label }));
+    const projDateD = new Date(pd(show[n - 1].monday).getTime() + FWD * 7 * D);
+    const rate = b;
+    const target = -1.0;
+    const pacePctNum = Math.max(0, Math.min(140, Math.round((rate / target) * 100)));
+    const onPace = rate <= target * 0.75;
+    const lastMon = show.slice(-5).reverse();
+    const recent = lastMon.map((v, i) => {
+      const prev = show[show.length - 1 - i - 1];
+      const dv = prev ? v.w - prev.w : 0;
+      const d = pd(v.monday);
+      return {
+        wc: 'WC ' + String(d.getUTCDate()).padStart(2, '0') + '/' + String(d.getUTCMonth() + 1).padStart(2, '0'),
+        w: v.w.toFixed(1), bf: v.bf == null ? '—' : v.bf.toFixed(1),
+        var: prev ? sgn(dv) : '—', varColor: dv > 0 ? '#b8564a' : '#4e7a52',
+      };
+    });
+    const y = (s.entries || []).slice(-1)[0] || { w: null, bf: null };
+    return {
+      c: Object.assign(base, {
+        a7: f1(a7.w), a14: f1(a14.w), a30: f1(a30.w), bf7: f1(a7.bf),
+        wow: sgn(wow),
+        wowColor: wow > 0 ? '#b8564a' : '#4e7a52',
+        wowColorDark: wow > 0 ? 'oklch(0.68 0.15 25)' : 'oklch(0.82 0.17 128)',
+        wowColorWarm: wow > 0 ? '#a04a3c' : '#5c7a58',
+        rate: sgn(rate) + '',
+        paceLabel: onPace ? 'On pace for the cut' : (rate < 0 ? 'Losing, under target' : 'Off pace — gaining'),
+        paceSentence: onPace ? 'That holds your −1.0 lb weekly target.' : 'That runs short of your −1.0 lb weekly target.',
+        paceColor: onPace ? '#4e7a52' : '#c08a3e',
+        paceColorDark: onPace ? 'oklch(0.82 0.17 128)' : 'oklch(0.78 0.15 75)',
+        paceColorWarm: onPace ? '#5c7a58' : '#a06b4e',
+        pacePct: pacePctNum + '%',
+        paceDash: (Math.min(1, pacePctNum / 100) * 194.8).toFixed(1) + ' 400',
+        projW: at(n - 1 + FWD).toFixed(1),
+        projDate: projDateD.getUTCDate() + ' ' + MON[projDateD.getUTCMonth()],
+        yWeight: f1(y.w), yBf: f1(y.bf),
+        recent, recent3: recent.slice(0, 3),
+        ch: { line, area, bfLine, proj, fit: fitPath, grid, marks, lastX: X(n - 1).toFixed(1), lastY: Y(show[n - 1].w).toFixed(1), projX: X(slots).toFixed(1), projY: Y(at(n - 1 + FWD)).toFixed(1) },
+      }),
+    };
+  }
+}
+</script>
+</body>
+</html>

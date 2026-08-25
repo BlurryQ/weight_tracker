@@ -1,0 +1,90 @@
+/* Latin-only subset (this app's copy is English-only) — cuts the PWA precache substantially
+ * versus the default *.css imports, which bundle vietnamese/cyrillic/latin-ext subsets too. */
+@import '@fontsource/barlow-condensed/latin-500.css';
+@import '@fontsource/barlow-condensed/latin-600.css';
+@import '@fontsource/barlow-condensed/latin-700.css';
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+@import '@fontsource/ibm-plex-mono/latin-600.css';
+
+:root {
+  /* Surfaces */
+  --bg: #0b0c0b;
+  --surface: #131513;
+  --raised: #1c201b;
+  --raised-hover: #272c26;
+  --hairline: #171a17;
+  --hairline-strong: #191c19;
+  --divider: #1c201b;
+  --chart-marker: #2b302a;
+
+  /* Text */
+  --text-primary: #f2f4ef;
+  --text-secondary: #e7eae3;
+  --text-muted: #7a8474;
+  --text-dim: #5f655d;
+  --text-disabled: #3a403a;
+
+  /* Accent (lime) */
+  --lime: oklch(0.82 0.17 128);
+  --lime-hover: oklch(0.88 0.17 128);
+  --lime-text: oklch(0.86 0.14 128);
+
+  /* Phase / status */
+  --red: oklch(0.68 0.15 25);
+  --blue: oklch(0.76 0.13 235);
+  --amber: oklch(0.78 0.15 75);
+
+  /* Type */
+  --font-display: 'Barlow Condensed', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: none;
+}
+
+#root {
+  height: 100%;
+  max-width: 430px;
+  margin: 0 auto;
+}
+
+button,
+input {
+  font-family: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+/* Hide scrollbars on the scrolling screen wrapper while keeping it scrollable */
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

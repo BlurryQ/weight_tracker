@@ -1,0 +1,224 @@
+import { describe, expect, it } from 'vitest'
+import {
+  avg,
+  currentDir,
+  dedupePhaseLog,
+  fitSlope,
+  leastSquaresFit,
+  phaseSpans,
+  projectionWeeks,
+  signColor,
+  solveByDate,
+  solveByWeight,
+  weeklyAverages,
+  type Entry,
+  type PhaseLogEntry,
+} from '../src/lib/math'
+import { WEIGHT_DATA_FIXTURE } from './fixtures/weight-data'
+
+// The fixture's real-world "today" — frozen so results are deterministic and directly
+// comparable to the numbers already hand-verified against the source CSV and the design
+// screenshots (screens/01-today.png, 02-today-reach-date-mode.png).
+const TODAY = '2026-08-25'
+
+describe('avg', () => {
+  it('divides by the number of entries actually found in the window, not by the window size', () => {
+    expect(avg(WEIGHT_DATA_FIXTURE, 7, TODAY)).toBeCloseTo(183.367, 3)
+    expect(avg(WEIGHT_DATA_FIXTURE, 14, TODAY)).toBeCloseTo(183.892, 3)
+    expect(avg(WEIGHT_DATA_FIXTURE, 30, TODAY)).toBeCloseTo(185.028, 3)
+  })
+
+  it('returns null when no entries fall in the window', () => {
+    expect(avg([], 7, TODAY)).toBeNull()
+    expect(avg([{ date: '2020-01-01', lbs: 200 }], 7, TODAY)).toBeNull()
+  })
+
+  it('supports an offset window (used for week-over-week deltas)', () => {
+    expect(avg(WEIGHT_DATA_FIXTURE, 7, TODAY, 7)).toBeCloseTo(184.343, 3)
+  })
+})
+
+describe('weeklyAverages', () => {
+  const weekly = weeklyAverages(WEIGHT_DATA_FIXTURE)
+
+  it('groups by ISO Monday and omits weeks with no entries', () => {
+    expect(weekly).toHaveLength(47)
+  })
+
+  it('means each week, including a partial current week', () => {
+    const last = weekly[weekly.length - 1]
+    expect(last.monday).toBe('2026-08-24')
+    expect(last.lbs).toBeCloseTo(183.4, 4)
+    expect(last.n).toBe(1)
+
+    const prev = weekly[weekly.length - 2]
+    expect(prev.monday).toBe('2026-08-17')
+    expect(prev.lbs).toBeCloseTo(183.5429, 3)
+    expect(prev.n).toBe(7)
+  })
+})
+
+describe('fitSlope (4-week window)', () => {
+  it('matches an independently computed OLS fit over the last 4 weekly averages', () => {
+    const weekly = weeklyAverages(WEIGHT_DATA_FIXTURE)
+    const { slope, r2 } = fitSlope(weekly, 4)
+    expect(slope).toBeCloseTo(-0.674285714, 6)
+    expect(r2).toBeCloseTo(0.9157513975665896, 6)
+  })
+})
+
+describe('leastSquaresFit', () => {
+  it('returns a flat zero-slope fit for fewer than 2 points', () => {
+    expect(leastSquaresFit([])).toEqual({ intercept: 0, slope: 0, r2: 0 })
+    expect(leastSquaresFit([{ x: 0, y: 5 }])).toEqual({ intercept: 5, slope: 0, r2: 0 })
+  })
+
+  it('fits a perfect line with r2 = 1', () => {
+    const pts = [0, 1, 2, 3].map((x) => ({ x, y: 10 - 2 * x }))
+    const { slope, intercept, r2 } = leastSquaresFit(pts)
+    expect(slope).toBeCloseTo(-2, 10)
+    expect(intercept).toBeCloseTo(10, 10)
+    expect(r2).toBeCloseTo(1, 10)
+  })
+})
+
+describe('dedupePhaseLog', () => {
+  it('keeps one entry per ISO week (last wins) and sorts ascending', () => {
+    const log: PhaseLogEntry[] = [
+      { start: '2026-01-07', name: 'Bulk' }, // same ISO week as the next entry (Monday 2026-01-05)
+      { start: '2026-01-05', name: 'Cut' },
+      { start: '2026-01-05', name: 'Bulk' }, // duplicate week, appended later -> should win
+      { start: '2025-12-01', name: 'Cut' },
+    ]
+    const out = dedupePhaseLog(log)
+    expect(out).toEqual([
+      { start: '2025-12-01', name: 'Cut' },
+      { start: '2026-01-05', name: 'Bulk' },
+    ])
+  })
+
+  it('self-heals an already-polluted log with many entries stacked on one week', () => {
+    // Simulates a log that appended unconditionally: 50 entries, all within the same ISO week.
+    const log: PhaseLogEntry[] = Array.from({ length: 50 }, (_, i) => ({
+      start: '2026-01-0' + (5 + (i % 2)), // Mon 2026-01-05 or Tue 2026-01-06 -> same ISO week
+      name: i % 2 === 0 ? 'Cut' : 'Bulk',
+    }))
+    expect(dedupePhaseLog(log)).toHaveLength(1)
+  })
+})
+
+describe('phaseSpans', () => {
+  it('only Cut/Bulk create bands; Deload/Maintain fold into the enclosing span', () => {
+    const log: PhaseLogEntry[] = [
+      { start: '2026-01-05', name: 'Bulk' },
+      { start: '2026-04-20', name: 'Cut' },
+      { start: '2026-07-27', name: 'Deload' },
+      { start: '2026-08-03', name: 'Cut' },
+    ]
+    const spans = phaseSpans(log)
+    // Cut (04-20) -> Deload (folds in, no new span) -> Cut (08-03, same dir, merges) -> one continuous Cut span
+    expect(spans).toEqual([
+      { dir: 'Bulk', start: '2026-01-05' },
+      { dir: 'Cut', start: '2026-04-20' },
+    ])
+  })
+})
+
+describe('currentDir', () => {
+  const log: PhaseLogEntry[] = [{ start: '2026-04-20', name: 'Cut' }]
+
+  it('uses the phase directly when it is Cut/Bulk', () => {
+    expect(currentDir('Bulk', log)).toBe('Bulk')
+  })
+
+  it('folds Maintain/Deload into the enclosing span direction', () => {
+    expect(currentDir('Deload', log)).toBe('Cut')
+  })
+
+  it('defaults to Cut with no span history', () => {
+    expect(currentDir('Maintain', [])).toBe('Cut')
+  })
+})
+
+describe('signColor', () => {
+  it('is grey for values under the noise threshold regardless of direction', () => {
+    expect(signColor(0.04, 'Cut')).toBe('grey')
+    expect(signColor(-0.04, 'Bulk')).toBe('grey')
+  })
+
+  it('is lime for progress in the phase direction, red otherwise', () => {
+    expect(signColor(-1, 'Cut')).toBe('lime') // losing weight on a cut = good
+    expect(signColor(1, 'Cut')).toBe('red')
+    expect(signColor(1, 'Bulk')).toBe('lime') // gaining weight on a bulk = good
+    expect(signColor(-1, 'Bulk')).toBe('red')
+  })
+})
+
+describe('Reach solver — solveByWeight', () => {
+  // Anchored on the real fixture's last weekly average (183.4) and 4-week fit slope
+  // (-0.674285714.../wk), matching screens/01-today.png (target 170.0 -> "10 Jan 2027, 20 weeks away").
+  const ctx = { current: 183.4, slopeLbs: -0.674285714285719, lastMonday: '2026-08-24' }
+
+  it('reproduces the exact date shown in the design screenshot', () => {
+    const result = solveByWeight(ctx, 170.0)
+    expect(result.kind).toBe('reachable')
+    if (result.kind === 'reachable') {
+      expect(result.roundedWeeks).toBe(20)
+      expect(result.date).toBe('2027-01-10')
+    }
+  })
+
+  it('is flat when the 4-week slope is under the noise threshold', () => {
+    const result = solveByWeight({ ...ctx, slopeLbs: 0.02 }, 170)
+    expect(result).toEqual({ kind: 'flat' })
+  })
+
+  it('is unreachable when the trend moves away from the target', () => {
+    // Losing weight (negative slope) but the target is above current -> moving away.
+    const result = solveByWeight(ctx, 190)
+    expect(result.kind).toBe('unreachable')
+  })
+
+  it('is unreachable beyond the 260-week horizon', () => {
+    // A slope just above the flat threshold (0.03) needs a huge target delta to exceed 260 weeks.
+    const result = solveByWeight({ ...ctx, slopeLbs: -0.031 }, ctx.current - 20)
+    expect(result.kind).toBe('unreachable')
+  })
+})
+
+describe('Reach solver — solveByDate', () => {
+  const ctx = { current: 183.4, slopeLbs: -0.674285714285719, lastMonday: '2026-08-24' }
+
+  it('reproduces the design screenshot for the 7-week set-date example', () => {
+    const result = solveByDate(ctx, 7)
+    expect(result.kind).toBe('projected')
+    expect(result.weight).toBeCloseTo(178.68, 2)
+    expect(result.date).toBe('2026-10-12')
+  })
+
+  it('reports flat trend with the current weight as the projection', () => {
+    const result = solveByDate({ ...ctx, slopeLbs: 0.01 }, 7)
+    expect(result.kind).toBe('flat')
+    expect(result.weight).toBeCloseTo(183.47, 2)
+  })
+})
+
+describe('projectionWeeks — chart/solver coupling', () => {
+  it('clamps the reachable weeks to 1-52 in weight-solve mode', () => {
+    const reachable = { kind: 'reachable' as const, weeks: 100, roundedWeeks: 100, date: '2028-01-01' }
+    expect(projectionWeeks('weight', 6, reachable)).toBe(52)
+  })
+
+  it('falls back to 6 weeks when flat or unreachable', () => {
+    expect(projectionWeeks('weight', 6, { kind: 'flat' })).toBe(6)
+    expect(projectionWeeks('weight', 6, { kind: 'unreachable', slopeLbs: 0.5 })).toBe(6)
+  })
+
+  it('follows the user-chosen targetWeeks directly in date-solve mode', () => {
+    expect(projectionWeeks('date', 9, { kind: 'flat' })).toBe(9)
+  })
+})
+
+// Exercise the exported types so `Entry` stays honest as a lightweight compile-time check.
+const _typeCheck: Entry = { date: '2026-01-01', lbs: 180 }
+void _typeCheck
