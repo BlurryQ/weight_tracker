@@ -26,6 +26,9 @@ export interface UiState {
   screen: Screen
   sheet: string | 'target' | null
   keypadValue: string
+  /** True right after opening the sheet on a day/target that already has a value — the first
+   * keypad tap overtypes it instead of appending, like a pre-selected text field. */
+  keypadPristine: boolean
   openWeek: string | null
   toast: string | null
   /** Set when the last sync attempt failed and writes remain queued. */
@@ -67,6 +70,7 @@ export function initialState(): AppState {
     screen: 'today',
     sheet: null,
     keypadValue: '',
+    keypadPristine: false,
     openWeek: null,
     toast: null,
     syncFailed: false,

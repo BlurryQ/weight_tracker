@@ -1,5 +1,5 @@
 import { addDays, mondayOf, today as todayIso } from '../lib/dates'
-import { toDisplay } from '../lib/format'
+import { applyKeypadKey, toDisplay } from '../lib/format'
 import { dedupePhaseLog } from '../lib/math'
 import type { AppState, PersistedState, Screen, SolveMode, TrendHorizon, TrendWindow, Unit } from './types'
 import type { PhaseName } from '../lib/math'
@@ -8,7 +8,7 @@ export type Action =
   | { type: 'SET_SCREEN'; screen: Screen }
   | { type: 'OPEN_SHEET'; sheet: string | 'target' }
   | { type: 'CLOSE_SHEET' }
-  | { type: 'SET_KEYPAD_VALUE'; value: string }
+  | { type: 'TAP_KEY'; key: string }
   | { type: 'SAVE_ENTRY'; date: string; lbs: number }
   | { type: 'DELETE_ENTRY'; date: string }
   | { type: 'SET_PHASE'; phase: PhaseName }
@@ -46,14 +46,18 @@ export function reducer(state: AppState, action: Action): AppState {
         const existing = state.entries.find((e) => e.date === action.sheet)
         if (existing) prefill = toDisplay(existing.lbs, state.unit).toFixed(1)
       }
-      return { ...state, sheet: action.sheet, keypadValue: prefill }
+      return { ...state, sheet: action.sheet, keypadValue: prefill, keypadPristine: prefill !== '' }
     }
 
     case 'CLOSE_SHEET':
-      return { ...state, sheet: null, keypadValue: '' }
+      return { ...state, sheet: null, keypadValue: '', keypadPristine: false }
 
-    case 'SET_KEYPAD_VALUE':
-      return { ...state, keypadValue: action.value }
+    case 'TAP_KEY': {
+      // First tap on a pristine (prefilled) value overtypes it instead of appending — same as a
+      // pre-selected text field: any keystroke, including backspace, starts from empty.
+      const base = state.keypadPristine ? '' : state.keypadValue
+      return { ...state, keypadValue: applyKeypadKey(base, action.key), keypadPristine: false }
+    }
 
     case 'SAVE_ENTRY': {
       const rest = state.entries.filter((e) => e.date !== action.date)
@@ -64,6 +68,7 @@ export function reducer(state: AppState, action: Action): AppState {
         ),
         sheet: null,
         keypadValue: '',
+        keypadPristine: false,
       }
     }
 
@@ -73,6 +78,7 @@ export function reducer(state: AppState, action: Action): AppState {
         entries: state.entries.filter((e) => e.date !== action.date),
         sheet: null,
         keypadValue: '',
+        keypadPristine: false,
       }
 
     case 'SET_PHASE': {
@@ -129,7 +135,7 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, targetLbs: action.value }
 
     case 'SAVE_TARGET':
-      return { ...state, targetLbs: action.value, sheet: null, keypadValue: '' }
+      return { ...state, targetLbs: action.value, sheet: null, keypadValue: '', keypadPristine: false }
 
     case 'SET_TARGET_WEEKS':
       return { ...state, targetWeeks: action.value }

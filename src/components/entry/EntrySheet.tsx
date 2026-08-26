@@ -1,5 +1,5 @@
 import { dayLabel, today as todayIso } from '../../lib/dates'
-import { applyKeypadKey, formatWeight, toLbs, unitLabel } from '../../lib/format'
+import { formatWeight, toLbs, unitLabel } from '../../lib/format'
 import { weeklyAverages } from '../../lib/math'
 import { useApp } from '../../store/AppContext'
 import { Keypad } from './Keypad'
@@ -34,7 +34,7 @@ export function EntrySheet() {
   }
 
   function tap(key: string) {
-    dispatch({ type: 'SET_KEYPAD_VALUE', value: applyKeypadKey(keypadValue, key) })
+    dispatch({ type: 'TAP_KEY', key })
   }
 
   function save() {
