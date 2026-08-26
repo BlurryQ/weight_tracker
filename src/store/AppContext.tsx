@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from 'react'
 import { drainQueue, pullRemote, startAutoSync } from '../data/sync'
 import { loadSnapshot, saveSnapshot } from '../data/localCache'
-import { IMPORT_SEED } from '../data/importSeed'
 import { enqueue, type SettingsPayload } from '../data/queue'
 import { reducer, type Action } from './reducer'
 import { initialState, type AppState } from './types'
@@ -73,11 +72,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [state, reactDispatch] = useReducer(reducer, undefined, () => {
     const base = initialState()
     const cached = loadSnapshot()
-    // First run, nothing cached yet: seed with the real weigh-in history rather than an empty
-    // log, matching the prototype's boot() behavior. A later pullRemote() overwrites this once
-    // Supabase has an authoritative copy.
-    if (!cached) return { ...base, entries: IMPORT_SEED }
-    return { ...base, ...cached }
+    // A genuinely fresh install boots empty — it must NOT auto-seed IMPORT_SEED (one person's
+    // real weigh-in history) for every install of this codebase. That data is only ever loaded
+    // via the explicit "Reset to the CSV import" button in Setup, a deliberate action by
+    // whoever owns that history, not a default for anyone who installs the app.
+    return cached ? { ...base, ...cached } : base
   })
 
   const stateRef = useRef(state)
