@@ -94,6 +94,15 @@ export function phaseSpans(log: PhaseLogEntry[]): PhaseSpan[] {
   return out
 }
 
+/** ISO Mondays where a Deload/Maintain entry starts — these don't create their own chart band
+ * (they fold into the enclosing Cut/Bulk span), but are still worth marking on the chart so a
+ * "this week should look level, not trending" week is visible at a glance. */
+export function foldedWeeks(log: PhaseLogEntry[]): string[] {
+  return dedupePhaseLog(log)
+    .filter((p) => !dirOf(p.name))
+    .map((p) => mondayOf(p.start))
+}
+
 export interface PhaseAt {
   /** Folded Cut/Bulk direction in effect for that week (used for the History phase tag). */
   dir: Direction | null

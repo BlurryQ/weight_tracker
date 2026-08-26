@@ -29,6 +29,7 @@ const SETTINGS_ACTION_TYPES = new Set<Action['type']>([
   'SET_TARGET_LBS',
   'SAVE_TARGET',
   'SET_TARGET_WEEKS',
+  'SET_PHASE_WEEK',
 ])
 
 /** Queues the sync side effects implied by one action, using the action's own payload for

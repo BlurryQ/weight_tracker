@@ -4,6 +4,7 @@ import {
   currentDir,
   dedupePhaseLog,
   fitSlope,
+  foldedWeeks,
   leastSquaresFit,
   phaseSpans,
   projectionWeeks,
@@ -121,6 +122,26 @@ describe('phaseSpans', () => {
       { dir: 'Bulk', start: '2026-01-05' },
       { dir: 'Cut', start: '2026-04-20' },
     ])
+  })
+})
+
+describe('foldedWeeks', () => {
+  it('returns only the Deload/Maintain weeks, not the Cut/Bulk ones', () => {
+    const log: PhaseLogEntry[] = [
+      { start: '2026-01-05', name: 'Bulk' },
+      { start: '2026-04-20', name: 'Cut' },
+      { start: '2026-06-01', name: 'Maintain' },
+      { start: '2026-07-27', name: 'Deload' },
+    ]
+    expect(foldedWeeks(log)).toEqual(['2026-06-01', '2026-07-27'])
+  })
+
+  it('dedupes by ISO week same as dedupePhaseLog', () => {
+    const log: PhaseLogEntry[] = [
+      { start: '2026-07-27', name: 'Deload' },
+      { start: '2026-07-28', name: 'Deload' }, // same ISO week as above
+    ]
+    expect(foldedWeeks(log)).toEqual(['2026-07-27'])
   })
 })
 

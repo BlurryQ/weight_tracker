@@ -1,4 +1,4 @@
-import { today as todayIso } from '../lib/dates'
+import { addDays, mondayOf, today as todayIso } from '../lib/dates'
 import { toDisplay } from '../lib/format'
 import { dedupePhaseLog } from '../lib/math'
 import type { AppState, PersistedState, Screen, SolveMode, TrendHorizon, TrendWindow, Unit } from './types'
@@ -13,6 +13,7 @@ export type Action =
   | { type: 'DELETE_ENTRY'; date: string }
   | { type: 'SET_PHASE'; phase: PhaseName }
   | { type: 'RESTART_PHASE' }
+  | { type: 'SET_PHASE_WEEK'; week: number }
   | { type: 'SET_WEEKLY_TARGET'; value: number }
   | { type: 'SET_UNIT'; unit: Unit }
   | { type: 'SET_TREND_WINDOW'; window: TrendWindow }
@@ -75,6 +76,10 @@ export function reducer(state: AppState, action: Action): AppState {
       }
 
     case 'SET_PHASE': {
+      // Tapping the already-selected phase card is a no-op, not a reset — otherwise re-opening
+      // Setup and tapping your current phase (e.g. just to look at it) silently zeroes the week
+      // counter back to 1.
+      if (action.phase === state.phase) return state
       const start = todayIso()
       return {
         ...state,
@@ -91,6 +96,15 @@ export function reducer(state: AppState, action: Action): AppState {
         phaseStart: start,
         phaseLog: withPhaseLogAppend(state.phaseLog, start, state.phase),
       }
+    }
+
+    case 'SET_PHASE_WEEK': {
+      // Lets the week counter be corrected directly (e.g. importing an in-progress phase)
+      // without touching phaseLog — the chart's Cut/Bulk bands and History's phase tags key off
+      // phaseLog, not phaseStart, so this only affects the week-counter display.
+      const week = Math.max(1, Math.round(action.week))
+      const phaseStart = addDays(mondayOf(todayIso()), -(week - 1) * 7)
+      return { ...state, phaseStart }
     }
 
     case 'SET_WEEKLY_TARGET':

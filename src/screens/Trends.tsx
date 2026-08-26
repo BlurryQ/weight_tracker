@@ -1,7 +1,7 @@
 import { buildChartGeometry } from '../lib/chartGeometry'
 import { fullDate, today as todayIso } from '../lib/dates'
 import { sgn, toDisplay, toLbs, unitLabel } from '../lib/format'
-import { currentDir, fitSlope, phaseSpans, signColor, weeklyAverages, type SignColor } from '../lib/math'
+import { currentDir, fitSlope, foldedWeeks, phaseSpans, signColor, weeklyAverages, type SignColor } from '../lib/math'
 import { useApp } from '../store/AppContext'
 import type { TrendHorizon, TrendWindow } from '../store/types'
 import { WeightChart } from '../components/chart/WeightChart'
@@ -62,6 +62,7 @@ export function Trends() {
     spans,
     { W: 316, H: 184, gutter: 32, showN: trendWindow, fitK, fwd: trendHorizon, gridN: 5 },
     (lbs) => toDisplay(lbs, unit),
+    foldedWeeks(phaseLog),
   )
 
   // geometry.last/first/slope/projVal are already in display units (the chart fits and

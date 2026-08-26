@@ -5,6 +5,7 @@ import {
   avg,
   currentDir,
   fitSlope,
+  foldedWeeks,
   paceStatus,
   phaseSpans,
   projectionWeeks,
@@ -91,6 +92,7 @@ export function Today() {
     spans,
     { W: 320, H: 128, gutter: 28, showN: 26, fitK: 4, fwd: solveWeeks, gridN: 4 },
     (lbs) => toDisplay(lbs, unit),
+    foldedWeeks(phaseLog),
   )
 
   const pace = paceStatus(fit4.slope, weeklyTarget)

@@ -90,6 +90,10 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
           />
         ))}
 
+        {g.markers.map((x, i) => (
+          <line key={i} x1={x} x2={x} y1={0} y2={H} stroke="rgba(255,255,255,0.4)" strokeWidth={1} />
+        ))}
+
         {g.grid.map((line, i) => (
           <line key={i} x1={0} x2={W} y1={line.y} y2={line.y} stroke="var(--hairline-strong)" strokeWidth={1} />
         ))}

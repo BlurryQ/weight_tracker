@@ -106,9 +106,26 @@ export function Setup() {
             <Stepper size={42} onDecrement={() => stepTarget(-1)} onIncrement={() => stepTarget(1)} />
           </div>
         </div>
+
+        <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--divider)', display: 'flex', alignItems: 'center', gap: 12 }}>
+          {sectionLabel('Current week')}
+          <span style={{ marginLeft: 'auto', font: '700 25px/1 "Barlow Condensed", sans-serif', color: 'var(--text-secondary)' }}>
+            {phaseWeek}
+          </span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Stepper
+              size={42}
+              disabled={phaseWeek <= 1 ? 'down' : null}
+              onDecrement={() => dispatch({ type: 'SET_PHASE_WEEK', week: phaseWeek - 1 })}
+              onIncrement={() => dispatch({ type: 'SET_PHASE_WEEK', week: phaseWeek + 1 })}
+            />
+          </div>
+        </div>
+
         <div style={{ marginTop: 8, font: '500 10px/1.5 "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
           Week {phaseWeek} of this {phase.toLowerCase()}, started {dayLabel(phaseStart)}. Deloads and maintenance weeks
-          stay inside the {dir.toLowerCase()} on the chart.
+          stay inside the {dir.toLowerCase()} on the chart. Adjust the week directly if it drifts — e.g. right after
+          picking up a phase already in progress.
         </div>
       </div>
 

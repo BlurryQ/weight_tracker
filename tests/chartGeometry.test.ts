@@ -72,4 +72,18 @@ describe('buildChartGeometry', () => {
     const geoKg = buildChartGeometry(weekly, [], TODAY_CFG, (v) => v * KG)
     expect(geoKg.last).toBeCloseTo(geoLb.last * KG, 6)
   })
+
+  it('places a marker for a Deload/Maintain week without adding a band edge there', () => {
+    const geo = buildChartGeometry(weekly, phaseSpans(PHASE_LOG), TODAY_CFG, undefined, ['2026-07-27'])
+    expect(geo.markers).toHaveLength(1)
+    // The marker sits strictly inside the Cut band (04-20 -> end), not on a band boundary.
+    const cutBand = geo.bands.find((b) => b.cut)!
+    expect(geo.markers[0]).toBeGreaterThan(cutBand.x)
+    expect(geo.markers[0]).toBeLessThan(cutBand.x + cutBand.width)
+  })
+
+  it('ignores marker weeks that fall outside the shown window', () => {
+    const geo = buildChartGeometry(weekly, [], TODAY_CFG, undefined, ['2000-01-03'])
+    expect(geo.markers).toEqual([])
+  })
 })

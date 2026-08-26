@@ -38,6 +38,8 @@ export interface ChartGeometry {
   proj: string
   grid: GridLine[]
   bands: Band[]
+  /** X positions of Deload/Maintain weeks — thin markers drawn over a band, not a band edge. */
+  markers: number[]
   dots: ChartDot[]
   lastX: number
   lastY: number
@@ -60,6 +62,7 @@ const EMPTY_GEOMETRY: ChartGeometry = {
   proj: '',
   grid: [],
   bands: [],
+  markers: [],
   dots: [],
   lastX: 0,
   lastY: 0,
@@ -85,6 +88,7 @@ export function buildChartGeometry(
   spans: PhaseSpan[],
   cfg: ChartConfig,
   convert: (lbs: number) => number = (v) => v,
+  markerWeeks: string[] = [],
 ): ChartGeometry {
   const show = weekly.slice(-cfg.showN)
   if (show.length < 2) return EMPTY_GEOMETRY
@@ -142,6 +146,14 @@ export function buildChartGeometry(
 
   const lastMonday = show[n - 1].monday
 
+  // Deload/Maintain markers: a thin line at the week's x position, distinct from band edges —
+  // these never move a band boundary, they just flag a week inside a Cut/Bulk band that should
+  // read level rather than trending.
+  const markers = [...new Set(markerWeeks)]
+    .map((m) => show.findIndex((w) => w.monday === m))
+    .filter((i) => i !== -1)
+    .map((i) => X(i))
+
   return {
     line,
     area,
@@ -149,6 +161,7 @@ export function buildChartGeometry(
     proj,
     grid,
     bands,
+    markers,
     dots: pts.map((p, i) => ({ x: X(i), y: Y(p.y) })),
     lastX: X(n - 1),
     lastY: Y(pts[n - 1].y),
