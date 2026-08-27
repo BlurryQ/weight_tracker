@@ -40,6 +40,10 @@ export interface ChartGeometry {
   bands: Band[]
   /** X positions of Deload/Maintain weeks — thin markers drawn over a band, not a band edge. */
   markers: number[]
+  /** Faint reference projection at the weekly target rate, anchored at the same point as `proj`
+   * — "if this continues" (`proj`) vs. "if you'd been exactly on target" (`targetProj`), so the
+   * gap between them is visible. Empty string when no target rate was given. */
+  targetProj: string
   dots: ChartDot[]
   lastX: number
   lastY: number
@@ -63,6 +67,7 @@ const EMPTY_GEOMETRY: ChartGeometry = {
   grid: [],
   bands: [],
   markers: [],
+  targetProj: '',
   dots: [],
   lastX: 0,
   lastY: 0,
@@ -89,6 +94,7 @@ export function buildChartGeometry(
   cfg: ChartConfig,
   convert: (lbs: number) => number = (v) => v,
   markerWeeks: string[] = [],
+  targetSlopeLbs?: number,
 ): ChartGeometry {
   const show = weekly.slice(-cfg.showN)
   if (show.length < 2) return EMPTY_GEOMETRY
@@ -102,8 +108,12 @@ export function buildChartGeometry(
   // Anchored at the last actual point, not the regression's fitted value there — using the
   // intercept would make a flat all-time fit project above/below current weight (real bug).
   const projected = pts[n - 1].y + fit.slope * cfg.fwd
+  // Same anchor, but at the weekly target rate instead of the actual fit slope — "if you'd been
+  // exactly on target" for comparison against the real projection.
+  const targetProjected = targetSlopeLbs != null ? pts[n - 1].y + convert(targetSlopeLbs) * cfg.fwd : null
 
   const allValues = pts.map((p) => p.y).concat([projected, fittedAt(n - k), fittedAt(n - 1)])
+  if (targetProjected != null) allValues.push(targetProjected)
   const lo = Math.min(...allValues) - 1.2
   const hi = Math.max(...allValues) + 1.2
   const X = (i: number) => (i / slots) * cfg.W
@@ -115,6 +125,10 @@ export function buildChartGeometry(
     'M' + X(n - k).toFixed(1) + ' ' + Y(fittedAt(n - k)).toFixed(1) + ' L' + X(n - 1).toFixed(1) + ' ' + Y(fittedAt(n - 1)).toFixed(1)
   const proj =
     'M' + X(n - 1).toFixed(1) + ' ' + Y(pts[n - 1].y).toFixed(1) + ' L' + X(slots).toFixed(1) + ' ' + Y(projected).toFixed(1)
+  const targetProj =
+    targetProjected != null
+      ? 'M' + X(n - 1).toFixed(1) + ' ' + Y(pts[n - 1].y).toFixed(1) + ' L' + X(slots).toFixed(1) + ' ' + Y(targetProjected).toFixed(1)
+      : ''
 
   const grid: GridLine[] = []
   const gn = cfg.gridN
@@ -162,6 +176,7 @@ export function buildChartGeometry(
     grid,
     bands,
     markers,
+    targetProj,
     dots: pts.map((p, i) => ({ x: X(i), y: Y(p.y) })),
     lastX: X(n - 1),
     lastY: Y(pts[n - 1].y),

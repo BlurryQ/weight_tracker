@@ -267,3 +267,56 @@ export function paceStatus(slopeLbs: number, weeklyTarget: number): PaceStatus {
   const pct = Math.max(0, Math.min(150, Math.round((slopeLbs / weeklyTarget) * 100)))
   return { onPace, pct }
 }
+
+// --- Data quality (Trends) -----------------------------------------
+
+export interface CompletionRatio {
+  logged: number
+  possible: number
+  pct: number
+  label: string
+}
+
+/** How many of the possible days in a Trends window actually have a logged entry — a trust
+ * signal for the trend numbers next to it (a slope fit on 60% of days is noisier than one on
+ * 95%). The window is clamped to not start before the first-ever entry, so "ALL" doesn't count
+ * days before tracking began as "missed". */
+export function completionRatio(entries: Entry[], windowWeeks: number, today: string): CompletionRatio {
+  const windowStart = addDays(today, -(windowWeeks * 7 - 1))
+  const firstEntryDate = entries.reduce((min, e) => (e.date < min ? e.date : min), today)
+  const lo = firstEntryDate > windowStart ? firstEntryDate : windowStart
+  const possible = diffDays(lo, today) + 1
+  const logged = entries.filter((e) => e.date >= lo && e.date <= today).length
+  const pct = possible > 0 ? Math.round((logged / possible) * 100) : 0
+  return { logged, possible, pct, label: completionLabel(pct) }
+}
+
+export function completionLabel(pct: number): string {
+  if (pct >= 90) return 'Very accurate'
+  if (pct >= 70) return 'Reliable'
+  if (pct >= 50) return 'A bit sparse'
+  return 'Too sparse to trust'
+}
+
+/** Plain-English read on how tightly a fit's R² actually sits on the line — the raw number
+ * alone doesn't say whether 0.7 is "fine" or "concerning". */
+export function fitQualityLabel(r2: number): string {
+  if (r2 >= 0.9) return 'Tight fit'
+  if (r2 >= 0.7) return 'Decent fit'
+  if (r2 >= 0.4) return 'Noisy'
+  return 'Very noisy'
+}
+
+/** Consecutive days logged counting back from today. If today isn't logged yet (e.g. you
+ * haven't weighed in this morning), counts back from yesterday instead — the streak isn't
+ * broken until a day actually passes without an entry. */
+export function currentStreak(entries: Entry[], today: string): number {
+  const logged = new Set(entries.map((e) => e.date))
+  let d = logged.has(today) ? today : addDays(today, -1)
+  let streak = 0
+  while (logged.has(d)) {
+    streak++
+    d = addDays(d, -1)
+  }
+  return streak
+}

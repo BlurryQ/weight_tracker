@@ -86,4 +86,30 @@ describe('buildChartGeometry', () => {
     const geo = buildChartGeometry(weekly, [], TODAY_CFG, undefined, ['2000-01-03'])
     expect(geo.markers).toEqual([])
   })
+
+  it('omits the target-pace reference line when no target rate is given', () => {
+    const geo = buildChartGeometry(weekly, [], TODAY_CFG)
+    expect(geo.targetProj).toBe('')
+  })
+
+  it('draws the target-pace line from the same anchor as the real projection, diverging by the difference in slope', () => {
+    const geo = buildChartGeometry(weekly, [], TODAY_CFG, undefined, [], -1.0)
+    expect(geo.targetProj).not.toBe('')
+    // Same start point as the real projection (both anchor at the last actual point).
+    const projStart = geo.proj.split(' ').slice(0, 2).join(' ')
+    const targetStart = geo.targetProj.split(' ').slice(0, 2).join(' ')
+    expect(targetStart).toBe(projStart)
+    // A different target rate than the actual fit slope means a different end point.
+    const projEnd = geo.proj.split(' ').slice(-2).join(' ')
+    const targetEnd = geo.targetProj.split(' ').slice(-2).join(' ')
+    expect(targetEnd).not.toBe(projEnd)
+  })
+
+  it('expands the y-domain to fit the target-pace line when it diverges further than the real data', () => {
+    // An extreme target rate should not get clipped out of the chart's vertical range.
+    const geo = buildChartGeometry(weekly, [], TODAY_CFG, undefined, [], -10)
+    const [, targetEndY] = geo.targetProj.split(' ').slice(-2).map(Number)
+    expect(targetEndY).toBeGreaterThanOrEqual(0)
+    expect(targetEndY).toBeLessThanOrEqual(TODAY_CFG.H)
+  })
 })

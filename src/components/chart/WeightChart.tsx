@@ -104,6 +104,18 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
 
         <path d={g.line} fill="none" stroke="var(--lime)" strokeWidth={2.1} strokeLinejoin="round" />
 
+        {g.targetProj && (
+          <path
+            d={g.targetProj}
+            fill="none"
+            stroke="var(--text-muted)"
+            strokeWidth={1}
+            strokeDasharray="1 4"
+            strokeLinecap="round"
+            opacity={0.5}
+          />
+        )}
+
         <path
           d={g.proj}
           fill="none"
