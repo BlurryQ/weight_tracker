@@ -10,6 +10,7 @@ import {
   fitSlope,
   foldedWeeks,
   leastSquaresFit,
+  longestStreak,
   phaseAt,
   phaseSpans,
   projectionWeeks,
@@ -313,6 +314,37 @@ describe('currentStreak', () => {
   it('is 0 when neither today nor yesterday is logged', () => {
     const entries: Entry[] = [{ date: '2026-08-01', lbs: 183 }]
     expect(currentStreak(entries, '2026-08-25')).toBe(0)
+  })
+})
+
+describe('longestStreak', () => {
+  it('finds the longest run across the whole history, even if it is not the current one', () => {
+    const entries: Entry[] = [
+      // A 5-day run in July...
+      { date: '2026-07-01', lbs: 183 },
+      { date: '2026-07-02', lbs: 183 },
+      { date: '2026-07-03', lbs: 183 },
+      { date: '2026-07-04', lbs: 183 },
+      { date: '2026-07-05', lbs: 183 },
+      // ...then a gap, then a shorter, more recent 2-day run.
+      { date: '2026-08-24', lbs: 183 },
+      { date: '2026-08-25', lbs: 183 },
+    ]
+    expect(longestStreak(entries)).toBe(5)
+  })
+
+  it('is unaffected by out-of-order or duplicate-date entries', () => {
+    const entries: Entry[] = [
+      { date: '2026-08-25', lbs: 183 },
+      { date: '2026-08-23', lbs: 183 },
+      { date: '2026-08-24', lbs: 183 },
+      { date: '2026-08-24', lbs: 183.5 }, // same date logged twice
+    ]
+    expect(longestStreak(entries)).toBe(3)
+  })
+
+  it('is 0 for no entries', () => {
+    expect(longestStreak([])).toBe(0)
   })
 })
 

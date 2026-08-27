@@ -102,9 +102,18 @@ export function WeekRow({
             <button
               type="button"
               onClick={onCopy}
-              style={{ font: '500 11px "IBM Plex Mono", monospace', color: 'var(--lime)', opacity: 0.75, cursor: 'pointer' }}
+              style={{
+                font: '600 9.5px/1 "Barlow Condensed", sans-serif',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                color: '#0b0c0b',
+                background: 'var(--lime)',
+                padding: '5px 10px',
+                borderRadius: 999,
+                cursor: 'pointer',
+              }}
             >
-              copy
+              Copy
             </button>
           </div>
           {dayNames.map((dn, di) => {

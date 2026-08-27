@@ -8,6 +8,7 @@ import {
   fitQualityLabel,
   fitSlope,
   foldedWeeks,
+  longestStreak,
   phaseSpans,
   signColor,
   weeklyAverages,
@@ -79,6 +80,7 @@ export function Trends() {
   )
 
   const streak = currentStreak(entries, today)
+  const best = longestStreak(entries)
   // completionRatio already clamps to the first-ever entry, so a big sentinel safely means "all".
   const completion = completionRatio(entries, trendWindow === 99 ? 9999 : trendWindow, today)
 
@@ -106,7 +108,25 @@ export function Trends() {
         </span>
       </div>
 
-      <div style={{ marginTop: 28 }}>
+      <div style={{ marginTop: 14, display: 'flex', alignItems: 'baseline', gap: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+          <span style={{ font: '700 20px/1 "Barlow Condensed", sans-serif', color: 'var(--lime)' }}>{streak}</span>
+          <span style={{ font: '500 9px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+            day{streak === 1 ? '' : 's'} streak
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+          <span style={{ font: '700 20px/1 "Barlow Condensed", sans-serif', color: 'var(--text-secondary)' }}>{best}</span>
+          <span style={{ font: '500 9px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>best</span>
+        </div>
+        <span style={{ marginLeft: 'auto', font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)', textAlign: 'right' }}>
+          {completion.logged}/{completion.possible} days
+          <br />
+          {completion.label}
+        </span>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
         <WeightChart geometry={geometry} W={316} H={184} gutter={32} variant="trends" />
       </div>
 
@@ -128,40 +148,6 @@ export function Trends() {
         <StatCard label="Change" value={sgn(change)} color={SIGN_COLOR[signColor(toLbs(change, unit), dir)]} />
         <StatCard label="Fit slope" value={sgn(toDisplay(fit.slope, unit), 2) + '/wk'} color={SIGN_COLOR[signColor(fit.slope, dir)]} />
         <StatCard label="R²" value={fit.r2.toFixed(2)} note={fitQualityLabel(fit.r2)} />
-      </div>
-
-      <div style={{ marginTop: 12, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)', display: 'flex', gap: 20 }}>
-        <div>
-          <div
-            style={{
-              font: '600 9px/1 "Barlow Condensed", sans-serif',
-              letterSpacing: '0.16em',
-              textTransform: 'uppercase',
-              color: 'var(--text-dim)',
-            }}
-          >
-            Streak
-          </div>
-          <div style={{ marginTop: 7, font: '700 25px/1 "Barlow Condensed", sans-serif', color: 'var(--text-secondary)' }}>
-            {streak} {streak === 1 ? 'day' : 'days'}
-          </div>
-        </div>
-        <div>
-          <div
-            style={{
-              font: '600 9px/1 "Barlow Condensed", sans-serif',
-              letterSpacing: '0.16em',
-              textTransform: 'uppercase',
-              color: 'var(--text-dim)',
-            }}
-          >
-            This window
-          </div>
-          <div style={{ marginTop: 7, font: '700 25px/1 "Barlow Condensed", sans-serif', color: 'var(--text-secondary)' }}>
-            {completion.logged}/{completion.possible} days
-          </div>
-          <div style={{ marginTop: 3, font: '500 9px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>{completion.label}</div>
-        </div>
       </div>
 
       <div style={{ marginTop: 12, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>

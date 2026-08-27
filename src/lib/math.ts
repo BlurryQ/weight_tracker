@@ -320,3 +320,18 @@ export function currentStreak(entries: Entry[], today: string): number {
   }
   return streak
 }
+
+/** The longest run of consecutive logged days across the whole history, not just the current
+ * streak — a "personal best" to put the current streak in context. */
+export function longestStreak(entries: Entry[]): number {
+  const dates = [...new Set(entries.map((e) => e.date))].sort()
+  let best = 0
+  let run = 0
+  let prev: string | null = null
+  for (const d of dates) {
+    run = prev && diffDays(prev, d) === 1 ? run + 1 : 1
+    best = Math.max(best, run)
+    prev = d
+  }
+  return best
+}
