@@ -111,14 +111,19 @@ export interface PhaseAt {
 }
 
 /** Which phase was in effect for a given ISO Monday, both the folded Cut/Bulk direction and
- * the raw phase name (so History can show "Deload" while the chart band still reads "Cut"). */
+ * the raw phase name (so History can show "Deload" while the chart band still reads "Cut").
+ *
+ * Deload/Maintain are one-week events, not standing states — a Deload logged for one Monday
+ * must not keep labeling every week after it until the next log entry. Only the exact week it
+ * was logged for shows the raw name; every other week falls back to the folded Cut/Bulk
+ * direction, same as the chart band underneath it. */
 export function phaseAt(monday: string, log: PhaseLogEntry[]): PhaseAt {
   const spans = phaseSpans(log)
   const span = spans.filter((p) => p.start <= monday).slice(-1)[0]
-  const raw = dedupePhaseLog(log)
-    .filter((p) => mondayOf(p.start) <= monday)
-    .slice(-1)[0]
-  return { dir: span ? span.dir : null, raw: raw ? raw.name : null }
+  const dir = span ? span.dir : null
+
+  const exact = dedupePhaseLog(log).find((p) => mondayOf(p.start) === monday)
+  return { dir, raw: exact ? exact.name : dir }
 }
 
 /** The direction (Cut/Bulk) the phase-aware sign rule should use: the current phase if it's

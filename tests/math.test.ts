@@ -6,6 +6,7 @@ import {
   fitSlope,
   foldedWeeks,
   leastSquaresFit,
+  phaseAt,
   phaseSpans,
   projectionWeeks,
   signColor,
@@ -142,6 +143,42 @@ describe('foldedWeeks', () => {
       { start: '2026-07-28', name: 'Deload' }, // same ISO week as above
     ]
     expect(foldedWeeks(log)).toEqual(['2026-07-27'])
+  })
+})
+
+describe('phaseAt', () => {
+  // Cut starting 04-20, a Maintain logged for just the 06-01 week, then a Deload logged for
+  // just the 07-27 week.
+  const log: PhaseLogEntry[] = [
+    { start: '2026-04-20', name: 'Cut' },
+    { start: '2026-06-01', name: 'Maintain' },
+    { start: '2026-07-27', name: 'Deload' },
+  ]
+
+  it('labels a Deload/Maintain week with its raw name only on the exact week it was logged', () => {
+    expect(phaseAt('2026-06-01', log).raw).toBe('Maintain')
+    expect(phaseAt('2026-07-27', log).raw).toBe('Deload')
+  })
+
+  it('reverts to the folded Cut/Bulk direction the week immediately after a Deload/Maintain week', () => {
+    // The real bug: these used to keep reading "Maintain"/"Deload" indefinitely, all the way
+    // up to the next logged entry, instead of just their own week.
+    expect(phaseAt('2026-06-08', log).raw).toBe('Cut')
+    expect(phaseAt('2026-08-03', log).raw).toBe('Cut')
+  })
+
+  it('does not affect the folded dir, which is meant to persist across weeks', () => {
+    expect(phaseAt('2026-06-01', log).dir).toBe('Cut')
+    expect(phaseAt('2026-07-27', log).dir).toBe('Cut')
+    expect(phaseAt('2026-08-03', log).dir).toBe('Cut')
+  })
+
+  it('labels the Cut/Bulk change week itself correctly, same as before', () => {
+    expect(phaseAt('2026-04-20', log).raw).toBe('Cut')
+  })
+
+  it('returns nulls for a week before any phase history exists', () => {
+    expect(phaseAt('2026-01-01', log)).toEqual({ dir: null, raw: null })
   })
 })
 
