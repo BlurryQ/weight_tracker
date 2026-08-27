@@ -1,16 +1,52 @@
-import { DAY_NAMES, today as todayIso } from '../lib/dates'
-import { currentDir, phaseAt, signColor, weeklyAverages } from '../lib/math'
+import { DAY_NAMES, today as todayIso, weekCommencingLabel } from '../lib/dates'
+import { formatWeekForClipboard } from '../lib/format'
+import { currentDir, phaseAt, signColor, weeklyAverages, type WeeklyAverage } from '../lib/math'
 import { useApp } from '../store/AppContext'
 import { WeekRow } from '../components/history/WeekRow'
 
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    // Fallback for contexts where the async Clipboard API is unavailable.
+    try {
+      const el = document.createElement('textarea')
+      el.value = text
+      el.style.position = 'fixed'
+      el.style.opacity = '0'
+      document.body.appendChild(el)
+      el.select()
+      const ok = document.execCommand('copy')
+      document.body.removeChild(el)
+      return ok
+    } catch {
+      return false
+    }
+  }
+}
+
 export function History() {
   const { state, dispatch } = useApp()
-  const { entries, phase, phaseLog, unit, openWeek } = state
+  const { entries, phase, phaseLog, unit, openWeek, weeklyTarget } = state
   const today = todayIso()
 
   const weekly = weeklyAverages(entries)
   const dir = currentDir(phase, phaseLog)
   const reversed = weekly.slice().reverse()
+
+  async function copyWeek(week: WeeklyAverage, deltaLbs: number | null) {
+    const text = formatWeekForClipboard({
+      monday: week.monday,
+      weeklyLbs: week.lbs,
+      deltaLbs,
+      weeklyTargetLbs: weeklyTarget,
+      unit,
+      entries,
+    })
+    const ok = await copyToClipboard(text)
+    dispatch({ type: 'SHOW_TOAST', message: ok ? `Copied ${weekCommencingLabel(week.monday)}` : 'Copy failed' })
+  }
 
   return (
     <div style={{ padding: '0 20px' }}>
@@ -53,6 +89,7 @@ export function History() {
             today={today}
             dayNames={DAY_NAMES}
             onEditDay={(date) => dispatch({ type: 'OPEN_SHEET', sheet: date })}
+            onCopy={() => copyWeek(week, deltaLbs)}
           />
         )
       })}

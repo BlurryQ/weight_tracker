@@ -1,3 +1,5 @@
+import { addDays, DAY_NAMES, weekCommencingLabel } from './dates'
+import type { Entry } from './math'
 import type { Unit } from '../store/types'
 
 export const KG_PER_LB = 0.45359237
@@ -23,6 +25,44 @@ export function formatWeight(lbs: number | null | undefined, unit: Unit): string
 /** Signed magnitude string: '+1.0' / '−0.7' (real minus sign, matching the design). */
 export function sgn(value: number, decimals = 1): string {
   return (value > 0 ? '+' : '−') + Math.abs(value).toFixed(decimals)
+}
+
+/** Same as sgn(), but with a plain ASCII hyphen — for text meant to be copied out of the app
+ * (clipboard, chat, notes) where the real minus sign can render oddly or get mangled. */
+function plainSgn(value: number, decimals = 1): string {
+  return (value > 0 ? '+' : '-') + Math.abs(value).toFixed(decimals)
+}
+
+/** The plain-text block for one History week, shaped for pasting elsewhere:
+ *
+ *   WC 24/08
+ *   Avg: 183.3 lbs (-1.1 on week)
+ *   Target Rate: -1.0 lb/wk
+ *   Mon: 183.4 | Tue: 183.2 | Wed: 183.6 | Thu: 183.0 | Fri: -- | Sat: -- | Sun: --
+ */
+export function formatWeekForClipboard(params: {
+  monday: string
+  weeklyLbs: number
+  deltaLbs: number | null
+  weeklyTargetLbs: number
+  unit: Unit
+  entries: Entry[]
+}): string {
+  const { monday, weeklyLbs, deltaLbs, weeklyTargetLbs, unit, entries } = params
+  const U = unitLabel(unit)
+  const rateUnit = unit === 'kg' ? 'kg' : 'lb'
+
+  const avgLine =
+    `Avg: ${toDisplay(weeklyLbs, unit).toFixed(1)} ${U}` +
+    (deltaLbs != null ? ` (${plainSgn(toDisplay(deltaLbs, unit))} on week)` : '')
+  const targetLine = `Target Rate: ${plainSgn(toDisplay(weeklyTargetLbs, unit))} ${rateUnit}/wk`
+  const daysLine = DAY_NAMES.map((name, i) => {
+    const date = addDays(monday, i)
+    const entry = entries.find((e) => e.date === date)
+    return `${name}: ${entry ? toDisplay(entry.lbs, unit).toFixed(1) : '--'}`
+  }).join(' | ')
+
+  return [weekCommencingLabel(monday), avgLine, targetLine, daysLine].join('\n')
 }
 
 /** Applies one keypad tap to the raw typed string: digits, one decimal point, backspace,

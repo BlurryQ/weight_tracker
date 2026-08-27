@@ -24,6 +24,7 @@ interface WeekRowProps {
   today: string
   dayNames: typeof DAY_NAMES
   onEditDay: (date: string) => void
+  onCopy: () => void
 }
 
 export function WeekRow({
@@ -41,6 +42,7 @@ export function WeekRow({
   today,
   dayNames,
   onEditDay,
+  onCopy,
 }: WeekRowProps) {
   return (
     <div style={{ marginBottom: 8, borderRadius: 14, background: 'var(--surface)', overflow: 'hidden' }}>
@@ -84,10 +86,26 @@ export function WeekRow({
 
       {open && (
         <div style={{ padding: '0 14px 12px' }}>
-          <div style={{ borderTop: '1px solid var(--divider)', paddingTop: 10, marginBottom: 4 }}>
+          <div
+            style={{
+              borderTop: '1px solid var(--divider)',
+              paddingTop: 10,
+              marginBottom: 4,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
             <span style={{ font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
               {(phase.raw ?? 'Logged') + ' · ' + n + ' of 7 days'}
             </span>
+            <button
+              type="button"
+              onClick={onCopy}
+              style={{ font: '500 11px "IBM Plex Mono", monospace', color: 'var(--lime)', opacity: 0.75, cursor: 'pointer' }}
+            >
+              copy
+            </button>
           </div>
           {dayNames.map((dn, di) => {
             const date = addDays(monday, di)
