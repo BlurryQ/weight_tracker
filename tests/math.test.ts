@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
   avg,
+  completionLabel,
+  completionRatio,
   currentDir,
+  currentStreak,
   dedupePhaseLog,
+  fitQualityLabel,
   fitSlope,
   foldedWeeks,
   leastSquaresFit,
+  longestStreak,
   phaseAt,
   phaseSpans,
   projectionWeeks,
@@ -274,6 +279,116 @@ describe('projectionWeeks — chart/solver coupling', () => {
 
   it('follows the user-chosen targetWeeks directly in date-solve mode', () => {
     expect(projectionWeeks('date', 9, { kind: 'flat' })).toBe(9)
+  })
+})
+
+describe('currentStreak', () => {
+  it('counts consecutive days ending today', () => {
+    const entries: Entry[] = [
+      { date: '2026-08-23', lbs: 183 },
+      { date: '2026-08-24', lbs: 183 },
+      { date: '2026-08-25', lbs: 183 },
+    ]
+    expect(currentStreak(entries, '2026-08-25')).toBe(3)
+  })
+
+  it('stops at the first gap looking backward', () => {
+    const entries: Entry[] = [
+      { date: '2026-08-20', lbs: 183 }, // gap here
+      { date: '2026-08-23', lbs: 183 },
+      { date: '2026-08-24', lbs: 183 },
+      { date: '2026-08-25', lbs: 183 },
+    ]
+    expect(currentStreak(entries, '2026-08-25')).toBe(3)
+  })
+
+  it('counts back from yesterday when today has no entry yet, without zeroing the streak', () => {
+    const entries: Entry[] = [
+      { date: '2026-08-23', lbs: 183 },
+      { date: '2026-08-24', lbs: 183 },
+      // 2026-08-25 (today) not logged yet
+    ]
+    expect(currentStreak(entries, '2026-08-25')).toBe(2)
+  })
+
+  it('is 0 when neither today nor yesterday is logged', () => {
+    const entries: Entry[] = [{ date: '2026-08-01', lbs: 183 }]
+    expect(currentStreak(entries, '2026-08-25')).toBe(0)
+  })
+})
+
+describe('longestStreak', () => {
+  it('finds the longest run across the whole history, even if it is not the current one', () => {
+    const entries: Entry[] = [
+      // A 5-day run in July...
+      { date: '2026-07-01', lbs: 183 },
+      { date: '2026-07-02', lbs: 183 },
+      { date: '2026-07-03', lbs: 183 },
+      { date: '2026-07-04', lbs: 183 },
+      { date: '2026-07-05', lbs: 183 },
+      // ...then a gap, then a shorter, more recent 2-day run.
+      { date: '2026-08-24', lbs: 183 },
+      { date: '2026-08-25', lbs: 183 },
+    ]
+    expect(longestStreak(entries)).toBe(5)
+  })
+
+  it('is unaffected by out-of-order or duplicate-date entries', () => {
+    const entries: Entry[] = [
+      { date: '2026-08-25', lbs: 183 },
+      { date: '2026-08-23', lbs: 183 },
+      { date: '2026-08-24', lbs: 183 },
+      { date: '2026-08-24', lbs: 183.5 }, // same date logged twice
+    ]
+    expect(longestStreak(entries)).toBe(3)
+  })
+
+  it('is 0 for no entries', () => {
+    expect(longestStreak([])).toBe(0)
+  })
+})
+
+describe('completionRatio', () => {
+  it('divides logged days by calendar days in the window', () => {
+    const entries: Entry[] = [
+      { date: '2026-08-19', lbs: 183 },
+      { date: '2026-08-20', lbs: 183 },
+      { date: '2026-08-24', lbs: 183 },
+      { date: '2026-08-25', lbs: 183 },
+    ]
+    // 1-week window ending 2026-08-25 -> 2026-08-19..25 inclusive = 7 possible days, 4 logged.
+    const r = completionRatio(entries, 1, '2026-08-25')
+    expect(r.possible).toBe(7)
+    expect(r.logged).toBe(4)
+    expect(r.pct).toBe(57)
+  })
+
+  it('clamps the window to not start before the first-ever entry', () => {
+    const entries: Entry[] = [
+      { date: '2026-08-24', lbs: 183 },
+      { date: '2026-08-25', lbs: 183 },
+    ]
+    // An 8-week window would normally span 56 days, but tracking only goes back to 08-24.
+    const r = completionRatio(entries, 8, '2026-08-25')
+    expect(r.possible).toBe(2)
+    expect(r.logged).toBe(2)
+    expect(r.pct).toBe(100)
+  })
+
+  it('labels match the documented thresholds', () => {
+    expect(completionLabel(95)).toBe('Very accurate')
+    expect(completionLabel(75)).toBe('Reliable')
+    expect(completionLabel(55)).toBe('A bit sparse')
+    expect(completionLabel(20)).toBe('Too sparse to trust')
+  })
+})
+
+describe('fitQualityLabel', () => {
+  it('labels match the documented thresholds', () => {
+    expect(fitQualityLabel(0.95)).toBe('Tight fit')
+    expect(fitQualityLabel(0.75)).toBe('Decent fit')
+    expect(fitQualityLabel(0.5)).toBe('Noisy')
+    expect(fitQualityLabel(0.2)).toBe('Very noisy')
   })
 })
 

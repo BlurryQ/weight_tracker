@@ -1,7 +1,19 @@
 import { buildChartGeometry } from '../lib/chartGeometry'
 import { fullDate, today as todayIso } from '../lib/dates'
 import { sgn, toDisplay, toLbs, unitLabel } from '../lib/format'
-import { currentDir, fitSlope, foldedWeeks, phaseSpans, signColor, weeklyAverages, type SignColor } from '../lib/math'
+import {
+  completionRatio,
+  currentDir,
+  currentStreak,
+  fitQualityLabel,
+  fitSlope,
+  foldedWeeks,
+  longestStreak,
+  phaseSpans,
+  signColor,
+  weeklyAverages,
+  type SignColor,
+} from '../lib/math'
 import { useApp } from '../store/AppContext'
 import type { TrendHorizon, TrendWindow } from '../store/types'
 import { WeightChart } from '../components/chart/WeightChart'
@@ -26,7 +38,7 @@ const HORIZON_OPTIONS: { value: TrendHorizon; label: string }[] = [
   { value: 12, label: '12W' },
 ]
 
-function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
+function StatCard({ label, value, color, note }: { label: string; value: string; color?: string; note?: string }) {
   return (
     <div style={{ flex: 1, padding: '12px 12px 13px', borderRadius: 14, background: 'var(--surface)' }}>
       <div
@@ -42,6 +54,7 @@ function StatCard({ label, value, color }: { label: string; value: string; color
       <div style={{ marginTop: 7, font: '700 25px/1 "Barlow Condensed", sans-serif', color: color ?? 'var(--text-secondary)' }}>
         {value}
       </div>
+      {note && <div style={{ marginTop: 3, font: '500 9px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>{note}</div>}
     </div>
   )
 }
@@ -63,7 +76,13 @@ export function Trends() {
     { W: 316, H: 184, gutter: 32, showN: trendWindow, fitK, fwd: trendHorizon, gridN: 5 },
     (lbs) => toDisplay(lbs, unit),
     foldedWeeks(phaseLog),
+    state.weeklyTarget,
   )
+
+  const streak = currentStreak(entries, today)
+  const best = longestStreak(entries)
+  // completionRatio already clamps to the first-ever entry, so a big sentinel safely means "all".
+  const completion = completionRatio(entries, trendWindow === 99 ? 9999 : trendWindow, today)
 
   // geometry.last/first/slope/projVal are already in display units (the chart fits and
   // projects on converted points — the one deliberate exception to "convert only at the
@@ -89,7 +108,25 @@ export function Trends() {
         </span>
       </div>
 
-      <div style={{ marginTop: 28 }}>
+      <div style={{ marginTop: 14, display: 'flex', alignItems: 'baseline', gap: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+          <span style={{ font: '700 20px/1 "Barlow Condensed", sans-serif', color: 'var(--lime)' }}>{streak}</span>
+          <span style={{ font: '500 9px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+            day{streak === 1 ? '' : 's'} streak
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+          <span style={{ font: '700 20px/1 "Barlow Condensed", sans-serif', color: 'var(--text-secondary)' }}>{best}</span>
+          <span style={{ font: '500 9px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>best</span>
+        </div>
+        <span style={{ marginLeft: 'auto', font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)', textAlign: 'right' }}>
+          {completion.logged}/{completion.possible} days
+          <br />
+          {completion.label}
+        </span>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
         <WeightChart geometry={geometry} W={316} H={184} gutter={32} variant="trends" />
       </div>
 
@@ -110,7 +147,7 @@ export function Trends() {
       <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
         <StatCard label="Change" value={sgn(change)} color={SIGN_COLOR[signColor(toLbs(change, unit), dir)]} />
         <StatCard label="Fit slope" value={sgn(toDisplay(fit.slope, unit), 2) + '/wk'} color={SIGN_COLOR[signColor(fit.slope, dir)]} />
-        <StatCard label="R²" value={fit.r2.toFixed(2)} />
+        <StatCard label="R²" value={fit.r2.toFixed(2)} note={fitQualityLabel(fit.r2)} />
       </div>
 
       <div style={{ marginTop: 12, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
