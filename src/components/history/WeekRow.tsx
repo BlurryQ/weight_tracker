@@ -136,7 +136,13 @@ export function WeekRow({
                   <button
                     type="button"
                     onClick={() => onEditDay(date)}
-                    style={{ font: '500 11px "IBM Plex Mono", monospace', color: 'var(--lime)', opacity: 0.75, cursor: 'pointer' }}
+                    style={{
+                      font: '500 11px "IBM Plex Mono", monospace',
+                      color: 'var(--lime)',
+                      opacity: 0.75,
+                      cursor: 'pointer',
+                      paddingRight: 10, // matches the Copy pill's own inset so the text lines up
+                    }}
                   >
                     {entry ? 'edit' : 'add'}
                   </button>
