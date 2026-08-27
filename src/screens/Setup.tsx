@@ -1,4 +1,3 @@
-import { IMPORT_SEED } from '../data/importSeed'
 import { dayLabel, diffDays, mondayOf, today as todayIso } from '../lib/dates'
 import { sgn, toDisplay, toLbs, unitLabel } from '../lib/format'
 import { currentDir, type PhaseName } from '../lib/math'
@@ -165,7 +164,7 @@ export function Setup() {
         </div>
       </div>
 
-      <div style={{ marginTop: 10, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
+      <div style={{ marginTop: 10, marginBottom: 20, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
         {sectionLabel('Sync shape')}
         <pre
           style={{
@@ -182,29 +181,6 @@ export function Setup() {
           Synced to Supabase when online, cached locally otherwise. One PUT per entry, keyed on date.
         </div>
       </div>
-
-      <button
-        type="button"
-        onClick={() => {
-          dispatch({ type: 'RESET_TO_IMPORT', entries: IMPORT_SEED })
-          dispatch({ type: 'SHOW_TOAST', message: 'Reset to the CSV import' })
-        }}
-        style={{
-          marginTop: 8,
-          marginBottom: 20,
-          width: '100%',
-          cursor: 'pointer',
-          padding: '13px 15px',
-          borderRadius: 14,
-          border: '1px dashed #3a2b2b',
-          background: 'transparent',
-          font: '500 11px "IBM Plex Mono", monospace',
-          color: '#8a6a6a',
-          textAlign: 'center',
-        }}
-      >
-        Reset to the CSV import
-      </button>
     </div>
   )
 }

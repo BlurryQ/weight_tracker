@@ -72,6 +72,11 @@ export function History() {
       {reversed.map((week, i) => {
         const prev = weekly[weekly.length - 1 - i - 1]
         const deltaLbs = prev ? week.lbs - prev.lbs : null
+        const phaseAtWeek = phaseAt(week.monday, phaseLog)
+        // Grade each week's delta by the phase direction it actually happened in, not by
+        // whatever phase you're in today — a gain during a real Bulk week was the goal, and
+        // should read lime there even while looking at History mid-Cut.
+        const rowDir = phaseAtWeek.dir ?? dir
         return (
           <WeekRow
             key={week.monday}
@@ -80,8 +85,8 @@ export function History() {
             n={week.n}
             deltaLbs={deltaLbs}
             hasPrev={!!prev}
-            signColorOf={(v) => signColor(v, dir)}
-            phase={phaseAt(week.monday, phaseLog)}
+            signColorOf={(v) => signColor(v, rowDir)}
+            phase={phaseAtWeek}
             open={openWeek === week.monday}
             onToggle={() => dispatch({ type: 'TOGGLE_WEEK', monday: week.monday })}
             entries={entries}

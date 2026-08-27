@@ -27,7 +27,6 @@ export type Action =
   | { type: 'CLEAR_TOAST' }
   | { type: 'HYDRATE'; state: Partial<PersistedState> }
   | { type: 'SET_SYNC_FAILED'; failed: boolean }
-  | { type: 'RESET_TO_IMPORT'; entries: PersistedState['entries'] }
 
 function withPhaseLogAppend(phaseLog: AppState['phaseLog'], start: string, name: PhaseName) {
   return dedupePhaseLog([...phaseLog, { start, name }])
@@ -151,9 +150,6 @@ export function reducer(state: AppState, action: Action): AppState {
 
     case 'SET_SYNC_FAILED':
       return { ...state, syncFailed: action.failed }
-
-    case 'RESET_TO_IMPORT':
-      return { ...state, entries: action.entries }
 
     default:
       return state

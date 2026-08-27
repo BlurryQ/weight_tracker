@@ -50,9 +50,6 @@ function queueSideEffects(action: Action, next: AppState) {
       enqueue({ op: 'upsert_settings', payload: settingsFrom(next) })
       break
     }
-    case 'RESET_TO_IMPORT':
-      for (const e of action.entries) enqueue({ op: 'upsert_entry', payload: { date: e.date, lbs: e.lbs } })
-      break
     default:
       if (SETTINGS_ACTION_TYPES.has(action.type)) {
         enqueue({ op: 'upsert_settings', payload: settingsFrom(next) })
@@ -72,10 +69,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [state, reactDispatch] = useReducer(reducer, undefined, () => {
     const base = initialState()
     const cached = loadSnapshot()
-    // A genuinely fresh install boots empty — it must NOT auto-seed IMPORT_SEED (one person's
-    // real weigh-in history) for every install of this codebase. That data is only ever loaded
-    // via the explicit "Reset to the CSV import" button in Setup, a deliberate action by
-    // whoever owns that history, not a default for anyone who installs the app.
+    // A genuinely fresh install boots empty — no auto-seeded history. (This used to default to
+    // one person's real weigh-in data via a "Reset to the CSV import" feature; removed entirely
+    // since that data had no business shipping in every install of this codebase.)
     return cached ? { ...base, ...cached } : base
   })
 

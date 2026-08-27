@@ -89,7 +89,7 @@ export function Trends() {
         </span>
       </div>
 
-      <div style={{ marginTop: 16 }}>
+      <div style={{ marginTop: 28 }}>
         <WeightChart geometry={geometry} W={316} H={184} gutter={32} variant="trends" />
       </div>
 

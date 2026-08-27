@@ -51,8 +51,8 @@ npm run dev
 ```
 
 Without Supabase credentials the app still runs — every `src/data/api.ts` call checks
-`supabaseConfigured` and no-ops, so you get a fully local, offline-only session seeded with the
-bundled weigh-in history (`src/data/importSeed.ts`).
+`supabaseConfigured` and no-ops, so you get a fully local, offline-only session. Fresh installs
+boot with no entries (log a weigh-in to get started).
 
 ### Database setup
 
