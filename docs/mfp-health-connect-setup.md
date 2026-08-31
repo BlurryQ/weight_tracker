@@ -20,7 +20,6 @@ the ones that need you, at your laptop or phone.
 - [x] Setup screen — "Calories" section with a Connect button (Android) / "Android only" note (web)
 - [ ] **You:** review the Android diffs + Kotlin, then build to a device (steps below)
 - [ ] **You:** run migration `0004` in the Supabase SQL editor
-- [ ] One-time MFP backfill (13 Oct 2025 → 31 Jul 2026) — needs your MFP session cookie
 
 ## Decision change (2026-08-31)
 
@@ -66,23 +65,14 @@ History. The app re-reads the last 35 days on every resume.
 
 ### 4. Run the DB migration
 
-Paste `supabase/migrations/0004_nutrition.sql` into the Supabase SQL editor and run it.
-Until this runs, calorie days are cached locally but won't sync.
-
-## Your tasks — for the backfill (later)
-
-- ~~Python version~~ — done: **3.12.3**.
-- **MyFitnessPal web session cookie:** log in at <https://www.myfitnesspal.com> in a desktop
-  browser → DevTools → Network tab → reload the food-diary page → click any `myfitnesspal.com`
-  request → Request Headers → copy the whole `cookie:` header. Hand it to Claude when asked
-  (don't paste it anywhere public). Claude will script `python-myfitnesspal` to pull daily
-  totals for 13 Oct 2025 → 31 Jul 2026 and turn them into an import like migrations 0002/0003.
-- Health Connect itself only holds ~30 days, so anything before ~1 Aug 2026 must come from this
-  backfill.
+Run `supabase/migrations/0004_nutrition.sql` in the Supabase SQL editor. **Done.**
 
 ## Reference
 
-- Supabase user_id (from migration 0002): `73d19a65-767c-4547-b510-19b8700c8fb8`
 - Estimate math: 28-day rolling window, never spans a Cut↔Bulk change, 3500 kcal/lb, needs
   14+ days of food logs before a number appears.
-- Health Connect live data on your account starts **1 Aug 2026**.
+- Health Connect live data on your account starts **1 Aug 2026**. Health Connect keeps ~30 days
+  and MFP syncs forward-only, so anything earlier is gone unless separately imported.
+- Optional, personal: `scripts/import-mfp-nutrition.py` can scrape older days straight from the
+  MFP web diary into a local `0005_import_nutrition.sql` if you ever want the pre-August
+  history. Not part of the feature; not something other users need.
