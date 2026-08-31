@@ -15,6 +15,14 @@ dev-dist
 .env
 .env.local
 
+# Local-only MyFitnessPal nutrition backfill: session cookie, scrape cache, and the
+# generated personal-data import. The script (scripts/import-mfp-nutrition.py) is tracked;
+# its output is not.
+.mfp-cookie
+scripts/mfp-nutrition.json
+scripts/__pycache__/
+supabase/migrations/0005_import_nutrition.sql
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

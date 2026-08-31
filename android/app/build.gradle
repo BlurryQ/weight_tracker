@@ -1,10 +1,14 @@
 apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
 
 android {
-    namespace "com.jazzbarlow.weighttracker"
+    namespace "com.blurryq.weighttracker"
     compileSdk rootProject.ext.compileSdkVersion
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_21.toString()
+    }
     defaultConfig {
-        applicationId "com.jazzbarlow.weighttracker"
+        applicationId "com.blurryq.weighttracker"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -40,6 +44,13 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+
+    // HealthConnectPlugin.kt — read daily calories-consumed totals from Health Connect.
+    // Pinned to 1.1.0-alpha12: the last connect-client with minCompileSdk 35 and no AGP floor.
+    // 1.1.0-beta02+ require compileSdk 36 / AGP 8.9.1. Bump both together if that becomes worth it.
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.24"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1"
+    implementation "androidx.health.connect:connect-client:1.1.0-alpha12"
 }
 
 apply from: 'capacitor.build.gradle'

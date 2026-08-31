@@ -1,7 +1,14 @@
 import { addDays, DAY_NAMES, weekCommencingLabel } from '../../lib/dates'
+import type { NutritionEntry } from '../../lib/energy'
 import { formatWeight, sgn, toDisplay } from '../../lib/format'
 import type { Entry, PhaseAt, SignColor } from '../../lib/math'
 import type { Unit } from '../../store/types'
+
+/** '2,010' — thousands-separated, or '—' for no data. */
+function formatKcal(kcal: number | null | undefined): string {
+  if (kcal == null || !(kcal > 0)) return '—'
+  return Math.round(kcal).toLocaleString('en-US')
+}
 
 const SIGN_COLOR: Record<SignColor, string> = {
   lime: 'var(--lime)',
@@ -20,6 +27,10 @@ interface WeekRowProps {
   open: boolean
   onToggle: () => void
   entries: Entry[]
+  /** Mean daily calories for this week, or null if MyFitnessPal logged nothing. */
+  weekKcal: number | null
+  /** Every daily calorie total (all weeks) — the expanded day list looks up its own dates. */
+  nutrition: NutritionEntry[]
   unit: Unit
   today: string
   dayNames: typeof DAY_NAMES
@@ -38,6 +49,8 @@ export function WeekRow({
   open,
   onToggle,
   entries,
+  weekKcal,
+  nutrition,
   unit,
   today,
   dayNames,
@@ -53,16 +66,27 @@ export function WeekRow({
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'baseline',
-          gap: 10,
+          gap: 8,
           padding: '13px 14px',
           width: '100%',
         }}
       >
-        <span style={{ font: '500 11px "IBM Plex Mono", monospace', color: 'var(--text-dim)', width: 74, textAlign: 'left' }}>
+        <span style={{ font: '500 11px "IBM Plex Mono", monospace', color: 'var(--text-dim)', width: 70, textAlign: 'left' }}>
           {weekCommencingLabel(monday)}
         </span>
-        <span style={{ font: '700 20px/1 "Barlow Condensed", sans-serif', color: 'var(--text-secondary)', width: 56, textAlign: 'left' }}>
+        <span style={{ font: '700 20px/1 "Barlow Condensed", sans-serif', color: 'var(--text-secondary)', width: 52, textAlign: 'left' }}>
           {formatWeight(weeklyLbs, unit)}
+        </span>
+        <span
+          style={{
+            font: '500 10.5px "IBM Plex Mono", monospace',
+            color: weekKcal && weekKcal > 0 ? 'var(--text-dim)' : 'var(--text-muted)',
+            width: 46,
+            textAlign: 'right',
+          }}
+          title="mean daily calories"
+        >
+          {formatKcal(weekKcal)}
         </span>
         {phase.dir && (
           <span
@@ -98,6 +122,7 @@ export function WeekRow({
           >
             <span style={{ font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
               {(phase.raw ?? 'Logged') + ' · ' + n + ' of 7 days'}
+              {weekKcal && weekKcal > 0 ? `  ·  Ø ${formatKcal(weekKcal)} cal/day` : ''}
             </span>
             <button
               type="button"
@@ -119,6 +144,7 @@ export function WeekRow({
           {dayNames.map((dn, di) => {
             const date = addDays(monday, di)
             const entry = entries.find((e) => e.date === date)
+            const dayKcal = nutrition.find((nn) => nn.date === date)?.kcal ?? null
             const future = date > today
             const isToday = date === today
             return (
@@ -131,6 +157,9 @@ export function WeekRow({
                 </span>
                 <span style={{ flex: 1, font: '500 13px "IBM Plex Mono", monospace', color: entry ? 'var(--text-secondary)' : 'var(--text-disabled)' }}>
                   {entry ? `${formatWeight(entry.lbs, unit)} ${unit === 'kg' ? 'kg' : 'lbs'}` : '—'}
+                </span>
+                <span style={{ width: 72, whiteSpace: 'nowrap', textAlign: 'right', font: '500 12px "IBM Plex Mono", monospace', color: dayKcal ? 'var(--text-dim)' : 'var(--text-disabled)' }}>
+                  {dayKcal ? `${formatKcal(dayKcal)} cal` : ''}
                 </span>
                 {!future && (
                   <button

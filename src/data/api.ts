@@ -1,9 +1,11 @@
+import type { NutritionEntry } from '../lib/energy'
 import type { Entry, PhaseLogEntry } from '../lib/math'
 import { supabase, supabaseConfigured } from './supabaseClient'
 import type { SettingsPayload } from './queue'
 
 export interface RemoteSnapshot {
   entries: Entry[]
+  nutrition: NutritionEntry[]
   phaseLog: PhaseLogEntry[]
   settings: SettingsPayload | null
 }
@@ -22,6 +24,14 @@ export async function upsertEntry(date: string, lbs: number): Promise<void> {
 export async function deleteEntry(date: string): Promise<void> {
   if (!supabaseConfigured) return
   const { error } = await supabase.from('entries').delete().eq('date', date)
+  if (error) throw error
+}
+
+export async function upsertDailyNutrition(date: string, kcal: number): Promise<void> {
+  if (!supabaseConfigured) return
+  const { error } = await supabase
+    .from('daily_nutrition')
+    .upsert({ date, kcal }, { onConflict: 'user_id,date' })
   if (error) throw error
 }
 
@@ -57,12 +67,14 @@ export async function fetchAll(): Promise<RemoteSnapshot | null> {
   const session = await requireSession()
   if (!session) return null
 
-  const [entriesRes, phaseLogRes, settingsRes] = await Promise.all([
+  const [entriesRes, nutritionRes, phaseLogRes, settingsRes] = await Promise.all([
     supabase.from('entries').select('date, lbs').order('date', { ascending: true }),
+    supabase.from('daily_nutrition').select('date, kcal').order('date', { ascending: true }),
     supabase.from('phase_log').select('start, name').order('start', { ascending: true }),
     supabase.from('settings').select('*').maybeSingle(),
   ])
   if (entriesRes.error) throw entriesRes.error
+  if (nutritionRes.error) throw nutritionRes.error
   if (phaseLogRes.error) throw phaseLogRes.error
   if (settingsRes.error) throw settingsRes.error
 
@@ -83,6 +95,7 @@ export async function fetchAll(): Promise<RemoteSnapshot | null> {
 
   return {
     entries: (entriesRes.data ?? []).map((r) => ({ date: r.date, lbs: r.lbs })),
+    nutrition: (nutritionRes.data ?? []).map((r) => ({ date: r.date, kcal: r.kcal })),
     phaseLog: (phaseLogRes.data ?? []).map((r) => ({ start: r.start, name: r.name })),
     settings,
   }

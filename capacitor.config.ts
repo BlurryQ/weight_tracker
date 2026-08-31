@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.jazzbarlow.weighttracker',
+  appId: 'com.blurryq.weighttracker',
   appName: 'Weight Tracker',
   webDir: 'dist',
   backgroundColor: '#0b0c0b',

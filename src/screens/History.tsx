@@ -1,4 +1,5 @@
 import { DAY_NAMES, today as todayIso, weekCommencingLabel } from '../lib/dates'
+import { weeklyKcal } from '../lib/energy'
 import { formatWeekForClipboard } from '../lib/format'
 import { currentDir, phaseAt, signColor, weeklyAverages, type WeeklyAverage } from '../lib/math'
 import { useApp } from '../store/AppContext'
@@ -28,10 +29,11 @@ async function copyToClipboard(text: string): Promise<boolean> {
 
 export function History() {
   const { state, dispatch } = useApp()
-  const { entries, phase, phaseLog, unit, openWeek, weeklyTarget } = state
+  const { entries, nutrition, phase, phaseLog, unit, openWeek, weeklyTarget } = state
   const today = todayIso()
 
   const weekly = weeklyAverages(entries)
+  const kcalByMonday = new Map(weeklyKcal(nutrition).map((w) => [w.monday, w.kcal]))
   const dir = currentDir(phase, phaseLog)
   const reversed = weekly.slice().reverse()
 
@@ -43,6 +45,7 @@ export function History() {
       weeklyTargetLbs: weeklyTarget,
       unit,
       entries,
+      nutrition,
     })
     const ok = await copyToClipboard(text)
     dispatch({ type: 'SHOW_TOAST', message: ok ? `Copied ${weekCommencingLabel(week.monday)}` : 'Copy failed' })
@@ -90,6 +93,8 @@ export function History() {
             open={openWeek === week.monday}
             onToggle={() => dispatch({ type: 'TOGGLE_WEEK', monday: week.monday })}
             entries={entries}
+            weekKcal={kcalByMonday.get(week.monday) ?? null}
+            nutrition={nutrition}
             unit={unit}
             today={today}
             dayNames={DAY_NAMES}
