@@ -1,4 +1,5 @@
 import { addDays, DAY_NAMES, weekCommencingLabel } from './dates'
+import type { NutritionEntry } from './energy'
 import type { Entry } from './math'
 import type { Unit } from '../store/types'
 
@@ -39,6 +40,16 @@ function plainSgn(value: number, decimals = 1): string {
  *   Avg: 183.3 lbs (-1.1 on week)
  *   Target Rate: -1.0 lb/wk
  *   Mon: 183.4 | Tue: 183.2 | Wed: 183.6 | Thu: 183.0 | Fri: -- | Sat: -- | Sun: --
+ *
+ * When the week has any MyFitnessPal calorie data, two more lines are woven in — an average
+ * under the weight average, and a per-day `Cals:` line under the weight days line:
+ *
+ *   WC 24/08
+ *   Avg: 183.3 lbs (-1.1 on week)
+ *   Avg calories: 2010/day
+ *   Target Rate: -1.0 lb/wk
+ *   Mon: 183.4 | Tue: 183.2 | Wed: 183.6 | Thu: 183.0 | Fri: -- | Sat: -- | Sun: --
+ *   Cals: Mon: 2010 | Tue: 1980 | Wed: 2100 | Thu: -- | Fri: -- | Sat: -- | Sun: --
  */
 export function formatWeekForClipboard(params: {
   monday: string
@@ -47,8 +58,9 @@ export function formatWeekForClipboard(params: {
   weeklyTargetLbs: number
   unit: Unit
   entries: Entry[]
+  nutrition?: NutritionEntry[]
 }): string {
-  const { monday, weeklyLbs, deltaLbs, weeklyTargetLbs, unit, entries } = params
+  const { monday, weeklyLbs, deltaLbs, weeklyTargetLbs, unit, entries, nutrition = [] } = params
   const U = unitLabel(unit)
   const rateUnit = unit === 'kg' ? 'kg' : 'lb'
 
@@ -62,7 +74,21 @@ export function formatWeekForClipboard(params: {
     return `${name}: ${entry ? toDisplay(entry.lbs, unit).toFixed(1) : '--'}`
   }).join(' | ')
 
-  return [weekCommencingLabel(monday), avgLine, targetLine, daysLine].join('\n')
+  const dayKcal = DAY_NAMES.map((_, i) => {
+    const date = addDays(monday, i)
+    return nutrition.find((n) => n.date === date)?.kcal ?? null
+  })
+  const loggedKcal = dayKcal.filter((k): k is number => k != null && k > 0)
+
+  const lines = [weekCommencingLabel(monday), avgLine, targetLine, daysLine]
+  if (loggedKcal.length) {
+    const meanKcal = Math.round(loggedKcal.reduce((a, b) => a + b, 0) / loggedKcal.length)
+    lines.splice(2, 0, `Avg calories: ${meanKcal}/day`)
+    lines.push(
+      'Cals: ' + DAY_NAMES.map((name, i) => `${name}: ${dayKcal[i] ? Math.round(dayKcal[i] as number) : '--'}`).join(' | '),
+    )
+  }
+  return lines.join('\n')
 }
 
 /** Applies one keypad tap to the raw typed string: digits, one decimal point, backspace,

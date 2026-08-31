@@ -1,5 +1,6 @@
 import { buildChartGeometry } from '../lib/chartGeometry'
 import { fullDate, today as todayIso } from '../lib/dates'
+import { estimateMaintenance, intakeAdjustment, targetIntake } from '../lib/energy'
 import { sgn, toDisplay, toLbs, unitLabel } from '../lib/format'
 import {
   completionRatio,
@@ -38,6 +39,88 @@ const HORIZON_OPTIONS: { value: TrendHorizon; label: string }[] = [
   { value: 12, label: '12W' },
 ]
 
+const kcal = (n: number) => Math.round(n).toLocaleString('en-US')
+
+function MaintenanceCard({
+  entries,
+  nutrition,
+  phaseLog,
+  weeklyTargetLbs,
+  today,
+}: {
+  entries: Parameters<typeof estimateMaintenance>[0]
+  nutrition: Parameters<typeof estimateMaintenance>[1]
+  phaseLog: Parameters<typeof estimateMaintenance>[2]
+  weeklyTargetLbs: number
+  today: string
+}) {
+  const est = estimateMaintenance(entries, nutrition, phaseLog, today)
+
+  return (
+    <div style={{ marginTop: 12, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
+      <div
+        style={{
+          font: '600 9.5px/1 "Barlow Condensed", sans-serif',
+          letterSpacing: '0.2em',
+          textTransform: 'uppercase',
+          color: 'var(--text-dim)',
+        }}
+      >
+        Energy balance
+      </div>
+
+      {est.maintenance == null ? (
+        <div style={{ marginTop: 10, font: '500 11px/1.5 "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+          {est.note}
+          <br />
+          Maintenance and a calorie target show up once there's enough overlap of weigh-ins and
+          MyFitnessPal days.
+        </div>
+      ) : (
+        <>
+          <div style={{ marginTop: 10, display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span
+              style={{
+                font: '700 36px/1 "Barlow Condensed", sans-serif',
+                color: est.kind === 'unreliable' ? 'var(--text-dim)' : 'var(--text-primary)',
+              }}
+            >
+              {kcal(est.maintenance)}
+            </span>
+            <span style={{ font: '500 11px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+              cal/day to maintain
+            </span>
+          </div>
+
+          {(() => {
+            const target = targetIntake(est.maintenance, weeklyTargetLbs)
+            const adj = intakeAdjustment(est, weeklyTargetLbs)
+            const rate = `${weeklyTargetLbs > 0 ? '+' : '−'}${Math.abs(weeklyTargetLbs).toFixed(1)} lb/wk`
+            const move =
+              adj == null || Math.abs(adj) < 25
+                ? 'about where you are now'
+                : adj < 0
+                  ? `trim ~${kcal(-adj)}/day from your recent ${kcal(est.meanIntake ?? 0)}`
+                  : `add ~${kcal(adj)}/day to your recent ${kcal(est.meanIntake ?? 0)}`
+            return (
+              <div style={{ marginTop: 8, font: '500 11px/1.6 "IBM Plex Mono", monospace', color: 'var(--text-secondary)' }}>
+                Target {rate} → <strong style={{ color: 'var(--lime)' }}>{kcal(target)} cal/day</strong>
+                <br />
+                <span style={{ color: 'var(--text-dim)' }}>{move}</span>
+              </div>
+            )
+          })()}
+
+          <div style={{ marginTop: 8, font: '500 9.5px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+            {est.note} · {est.calorieDays} days
+            {est.kind === 'unreliable' ? ' · treat with caution' : ''}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 function StatCard({ label, value, color, note }: { label: string; value: string; color?: string; note?: string }) {
   return (
     <div style={{ flex: 1, padding: '12px 12px 13px', borderRadius: 14, background: 'var(--surface)' }}>
@@ -61,7 +144,7 @@ function StatCard({ label, value, color, note }: { label: string; value: string;
 
 export function Trends() {
   const { state, dispatch } = useApp()
-  const { entries, phase, phaseLog, unit, trendWindow, trendHorizon } = state
+  const { entries, nutrition, phase, phaseLog, unit, trendWindow, trendHorizon } = state
   const today = todayIso()
 
   const weekly = weeklyAverages(entries)
@@ -181,6 +264,14 @@ export function Trends() {
           {sgn(toDisplay(state.weeklyTarget, unit), 2)} {unitLabel(unit)}/wk.
         </div>
       </div>
+
+      <MaintenanceCard
+        entries={entries}
+        nutrition={nutrition}
+        phaseLog={phaseLog}
+        weeklyTargetLbs={state.weeklyTarget}
+        today={today}
+      />
     </div>
   )
 }

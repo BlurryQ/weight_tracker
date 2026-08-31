@@ -1,5 +1,6 @@
 import { addDays, mondayOf, today as todayIso } from '../lib/dates'
 import { applyKeypadKey, toDisplay } from '../lib/format'
+import type { NutritionEntry } from '../lib/energy'
 import { dedupePhaseLog } from '../lib/math'
 import type { AppState, PersistedState, Screen, SolveMode, TrendHorizon, TrendWindow, Unit } from './types'
 import type { PhaseName } from '../lib/math'
@@ -11,6 +12,7 @@ export type Action =
   | { type: 'TAP_KEY'; key: string }
   | { type: 'SAVE_ENTRY'; date: string; lbs: number }
   | { type: 'DELETE_ENTRY'; date: string }
+  | { type: 'MERGE_NUTRITION'; entries: NutritionEntry[] }
   | { type: 'SET_PHASE'; phase: PhaseName }
   | { type: 'RESTART_PHASE' }
   | { type: 'SET_PHASE_WEEK'; week: number }
@@ -79,6 +81,18 @@ export function reducer(state: AppState, action: Action): AppState {
         keypadValue: '',
         keypadPristine: false,
       }
+
+    case 'MERGE_NUTRITION': {
+      // Upsert by date, incoming wins. Callers pass only days that actually changed, so an
+      // empty list is a no-op (avoids a pointless state churn on every app resume).
+      if (!action.entries.length) return state
+      const byDate = new Map(state.nutrition.map((n) => [n.date, n]))
+      for (const n of action.entries) byDate.set(n.date, n)
+      return {
+        ...state,
+        nutrition: [...byDate.values()].sort((a, b) => (a.date < b.date ? -1 : 1)),
+      }
+    }
 
     case 'SET_PHASE': {
       // Tapping the already-selected phase card is a no-op, not a reset — otherwise re-opening

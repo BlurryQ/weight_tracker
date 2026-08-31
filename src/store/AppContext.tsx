@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from 'react'
+import { syncHealthConnect } from '../data/healthConnect'
 import { drainQueue, pullRemote, startAutoSync } from '../data/sync'
 import { loadSnapshot, saveSnapshot } from '../data/localCache'
 import { enqueue, type SettingsPayload } from '../data/queue'
@@ -42,6 +43,12 @@ function queueSideEffects(action: Action, next: AppState) {
       break
     case 'DELETE_ENTRY':
       enqueue({ op: 'delete_entry', payload: { date: action.date } })
+      break
+    case 'MERGE_NUTRITION':
+      // The reducer already dropped an empty list; here we mirror each changed day to Supabase.
+      for (const n of action.entries) {
+        enqueue({ op: 'upsert_nutrition', payload: { date: n.date, kcal: n.kcal } })
+      }
       break
     case 'SET_PHASE':
     case 'RESTART_PHASE': {
@@ -101,6 +108,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         type: 'HYDRATE',
         state: {
           entries: remote.entries,
+          nutrition: remote.nutrition,
           phaseLog: remote.phaseLog,
           ...(remote.settings ?? {}),
         },
@@ -115,6 +123,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     return startAutoSync((failed) => reactDispatch({ type: 'SET_SYNC_FAILED', failed }))
   }, [])
+
+  // Pull recent daily calorie totals out of Health Connect on boot and whenever the app comes
+  // back to the foreground (MyFitnessPal may have logged more since). Goes through the custom
+  // `dispatch` so changed days are queued to Supabase. No-op off Android.
+  useEffect(() => {
+    const run = () => void syncHealthConnect(stateRef.current.nutrition, dispatch)
+    run()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') run()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [dispatch])
 
   const value = useMemo(() => ({ state, dispatch }), [state, dispatch])
 

@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">Weight Tracker</string>
     <string name="title_activity_main">Weight Tracker</string>
-    <string name="package_name">com.jazzbarlow.weighttracker</string>
-    <string name="custom_url_scheme">com.jazzbarlow.weighttracker</string>
+    <string name="package_name">com.blurryq.weighttracker</string>
+    <string name="custom_url_scheme">com.blurryq.weighttracker</string>
 </resources>

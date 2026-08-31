@@ -1,3 +1,4 @@
+import type { NutritionEntry } from '../lib/energy'
 import type { Entry, PhaseLogEntry, PhaseName } from '../lib/math'
 
 export type Screen = 'today' | 'trends' | 'history' | 'setup'
@@ -9,6 +10,10 @@ export type TrendHorizon = 4 | 6 | 12
 /** State persisted to local cache and, once synced, to Supabase. */
 export interface PersistedState {
   entries: Entry[]
+  /** Daily calories-consumed totals from Health Connect (MyFitnessPal writes them there).
+   * Read-through cache of the `daily_nutrition` table; empty on platforms without Health
+   * Connect. */
+  nutrition: NutritionEntry[]
   phase: PhaseName
   phaseStart: string
   phaseLog: PhaseLogEntry[]
@@ -41,6 +46,7 @@ export type AppState = PersistedState & UiState
 
 export const PERSISTED_KEYS: (keyof PersistedState)[] = [
   'entries',
+  'nutrition',
   'phase',
   'phaseStart',
   'phaseLog',
@@ -57,6 +63,7 @@ export function initialState(): AppState {
   const today = new Date().toISOString().slice(0, 10)
   return {
     entries: [],
+    nutrition: [],
     phase: 'Cut',
     phaseStart: today,
     phaseLog: [{ start: today, name: 'Cut' }],

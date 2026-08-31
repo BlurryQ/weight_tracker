@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+import { healthConnectSupported, isCalorieAccessGranted, requestCalorieAccess, syncHealthConnect } from '../data/healthConnect'
 import { dayLabel, diffDays, mondayOf, today as todayIso } from '../lib/dates'
 import { sgn, toDisplay, toLbs, unitLabel } from '../lib/format'
 import { currentDir, type PhaseName } from '../lib/math'
@@ -29,10 +31,26 @@ function sectionLabel(text: string) {
 
 export function Setup() {
   const { state, dispatch } = useApp()
-  const { phase, phaseStart, phaseLog, weeklyTarget, unit, entries } = state
+  const { phase, phaseStart, phaseLog, weeklyTarget, unit, entries, nutrition } = state
   const today = todayIso()
   const dir = currentDir(phase, phaseLog)
   const phaseWeek = Math.floor(diffDays(mondayOf(phaseStart), today) / 7) + 1
+
+  const [calories, setCalories] = useState<'unknown' | 'connected' | 'disconnected' | 'connecting'>('unknown')
+  useEffect(() => {
+    if (!healthConnectSupported()) return
+    void isCalorieAccessGranted().then((ok) => setCalories(ok ? 'connected' : 'disconnected'))
+  }, [])
+
+  async function connectCalories() {
+    setCalories('connecting')
+    const ok = await requestCalorieAccess()
+    setCalories(ok ? 'connected' : 'disconnected')
+    if (ok) {
+      dispatch({ type: 'SHOW_TOAST', message: 'Health Connect linked — pulling calories' })
+      void syncHealthConnect(nutrition, dispatch)
+    }
+  }
 
   function stepTarget(direction: 1 | -1) {
     const step = unit === 'kg' ? 0.1 : 0.25
@@ -149,6 +167,48 @@ export function Setup() {
       >
         Start this phase again from today (resets week count)
       </button>
+
+      <div style={{ marginTop: 20, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
+        {sectionLabel('Calories')}
+        {healthConnectSupported() ? (
+          <>
+            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ font: '700 16px/1.2 "Barlow Condensed", sans-serif', letterSpacing: '0.04em', textTransform: 'uppercase', color: calories === 'connected' ? 'var(--lime-text)' : 'var(--text-secondary)' }}>
+                {calories === 'connected' ? 'Connected' : 'Not connected'}
+              </span>
+              {calories !== 'connected' && (
+                <button
+                  type="button"
+                  onClick={connectCalories}
+                  disabled={calories === 'connecting'}
+                  style={{
+                    marginLeft: 'auto',
+                    cursor: 'pointer',
+                    padding: '9px 16px',
+                    borderRadius: 999,
+                    background: 'var(--lime)',
+                    color: '#0b0c0b',
+                    font: '700 11px/1 "Barlow Condensed", sans-serif',
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {calories === 'connecting' ? 'Requesting…' : 'Connect'}
+                </button>
+              )}
+            </div>
+            <div style={{ marginTop: 8, font: '500 10px/1.5 "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+              Reads your daily calorie totals from Health Connect, which MyFitnessPal writes to.
+              Powers maintenance and target-intake on Trends, and the per-day figures in History.
+            </div>
+          </>
+        ) : (
+          <div style={{ marginTop: 8, font: '500 10px/1.5 "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+            Android only — calories sync from MyFitnessPal through Health Connect, which isn't
+            available on this platform.
+          </div>
+        )}
+      </div>
 
       <div style={{ marginTop: 20 }}>
         {sectionLabel('Display unit')}

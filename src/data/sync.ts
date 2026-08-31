@@ -1,4 +1,12 @@
-import { deleteEntry, fetchAll, upsertEntry, upsertPhaseLogEntry, upsertSettings, type RemoteSnapshot } from './api'
+import {
+  deleteEntry,
+  fetchAll,
+  upsertDailyNutrition,
+  upsertEntry,
+  upsertPhaseLogEntry,
+  upsertSettings,
+  type RemoteSnapshot,
+} from './api'
 import { dequeue, peekAll, type QueueOp } from './queue'
 
 async function applyOp(op: QueueOp): Promise<void> {
@@ -7,6 +15,8 @@ async function applyOp(op: QueueOp): Promise<void> {
       return upsertEntry(op.payload.date, op.payload.lbs)
     case 'delete_entry':
       return deleteEntry(op.payload.date)
+    case 'upsert_nutrition':
+      return upsertDailyNutrition(op.payload.date, op.payload.kcal)
     case 'upsert_phase':
       return upsertPhaseLogEntry(op.payload.start, op.payload.name)
     case 'upsert_settings':

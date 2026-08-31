@@ -27,7 +27,25 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="weighttracker" android:host="login-callback" />
             </intent-filter>
+
+            <!-- Health Connect opens this when the user taps "privacy policy" in the
+                 permission sheet on Android 13 and below. We just bring the app to the front. -->
+            <intent-filter>
+                <action android:name="androidx.health.connect.action.SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
         </activity>
+
+        <!-- Same, for Android 14+ (API 34+), which uses this intent instead. -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -41,4 +59,12 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Read calories-consumed totals that MyFitnessPal writes into Health Connect. -->
+    <uses-permission android:name="android.permission.health.READ_NUTRITION" />
+
+    <!-- Lets the app detect / deep-link to the Health Connect app. -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
 </manifest>

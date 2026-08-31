@@ -40,6 +40,36 @@ describe('reducer — SET_PHASE_WEEK', () => {
   })
 })
 
+describe('reducer — MERGE_NUTRITION', () => {
+  it('upserts by date with the incoming value winning, sorted ascending', () => {
+    const state = {
+      ...initialState(),
+      nutrition: [
+        { date: '2026-08-10', kcal: 2000 },
+        { date: '2026-08-12', kcal: 2100 },
+      ],
+    }
+    const next = reducer(state, {
+      type: 'MERGE_NUTRITION',
+      entries: [
+        { date: '2026-08-12', kcal: 2250 }, // updates
+        { date: '2026-08-11', kcal: 1950 }, // inserts, out of order
+      ],
+    })
+    expect(next.nutrition).toEqual([
+      { date: '2026-08-10', kcal: 2000 },
+      { date: '2026-08-11', kcal: 1950 },
+      { date: '2026-08-12', kcal: 2250 },
+    ])
+  })
+
+  it('is a no-op (same reference) when given an empty list', () => {
+    const state = { ...initialState(), nutrition: [{ date: '2026-08-10', kcal: 2000 }] }
+    const next = reducer(state, { type: 'MERGE_NUTRITION', entries: [] })
+    expect(next).toBe(state)
+  })
+})
+
 describe('reducer — TAP_KEY (keypad overtype)', () => {
   it('overtypes a pristine (prefilled) value on the first tap instead of appending', () => {
     const state = { ...initialState(), keypadValue: '183.4', keypadPristine: true }

@@ -15,6 +15,9 @@ dev-dist
 .env
 .env.local
 
+# Local-only MyFitnessPal session cookie for the one-time nutrition backfill script.
+.mfp-cookie
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
