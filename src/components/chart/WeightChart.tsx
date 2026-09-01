@@ -16,9 +16,10 @@ const BULK_FILL = 'oklch(0.76 0.13 235 / .07)'
 const BULK_EDGE = 'oklch(0.76 0.13 235 / .28)'
 const BULK_LABEL = 'oklch(0.76 0.13 235)'
 
-/** Renders the seven-layer weekly-average chart shared by Today (compact) and Trends (full).
- * Geometry comes from lib/chartGeometry.ts — this component only draws it, back to front:
- * bands, gridlines, area, fit line, data line, projection, dots. */
+/** Renders the weekly-average chart shared by Today (compact) and Trends (full). Geometry
+ * comes from lib/chartGeometry.ts — this component only draws it, back to front: bands,
+ * gridlines, area, trend line (faint past + dashed forward), data line, target reference,
+ * dots. */
 export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartProps) {
   const gradId = useId()
   const isTrends = variant === 'trends'
@@ -60,6 +61,23 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
           {line.value}
         </div>
       ))}
+      {/* The one label the chart needs — the trend line grows out of the data, so it names
+          itself; only the reference does not. Right-aligned to the chart edge. */}
+      {g.targetProj && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            width: gutter + g.projX - 2,
+            top: g.targetProjY + 3,
+            textAlign: 'right',
+            font: '500 8.5px "IBM Plex Mono", monospace',
+            color: 'var(--text-muted)',
+          }}
+        >
+          target
+        </div>
+      )}
       <svg width={W} height={H} style={{ overflow: 'visible', display: 'block' }}>
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
@@ -100,31 +118,37 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
 
         <path d={g.area} fill={`url(#${gradId})`} stroke="none" />
 
-        <path d={g.fit} fill="none" stroke="var(--text-muted)" strokeWidth={1} strokeDasharray="5 4" />
+        {/* Trend line, one object: a faint solid connector back into the data … */}
+        <path d={g.trendPast} fill="none" stroke="var(--lime)" strokeWidth={1.4} strokeLinecap="round" opacity={0.4} />
 
         <path d={g.line} fill="none" stroke="var(--lime)" strokeWidth={2.1} strokeLinejoin="round" />
 
-        {g.targetProj && (
-          <path
-            d={g.targetProj}
-            fill="none"
-            stroke="var(--text-muted)"
-            strokeWidth={1}
-            strokeDasharray="1 4"
-            strokeLinecap="round"
-            opacity={0.5}
-          />
-        )}
+        {/* … continued forward as the dashed projection. This is the headline line: full weight. */}
+        <path d={g.proj} fill="none" stroke="var(--lime)" strokeWidth={2} strokeDasharray="5 4" strokeLinecap="round" />
 
-        <path
-          d={g.proj}
-          fill="none"
-          stroke="var(--lime)"
-          strokeWidth={2}
-          strokeDasharray="2 5"
-          strokeLinecap="round"
-          opacity={0.55}
-        />
+        {/* Target-rate reference: forward only, thinner and dimmer, with a terminal tick. */}
+        {g.targetProj && (
+          <>
+            <path
+              d={g.targetProj}
+              fill="none"
+              stroke="var(--text-muted)"
+              strokeWidth={1.25}
+              strokeDasharray="1 5"
+              strokeLinecap="round"
+              opacity={0.5}
+            />
+            <line
+              x1={g.projX}
+              x2={g.projX}
+              y1={g.targetProjY - 4}
+              y2={g.targetProjY + 4}
+              stroke="var(--text-muted)"
+              strokeWidth={1.25}
+              opacity={0.6}
+            />
+          </>
+        )}
 
         {isTrends &&
           g.dots.map((d, i) => (

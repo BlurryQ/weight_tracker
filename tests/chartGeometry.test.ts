@@ -53,6 +53,19 @@ describe('buildChartGeometry', () => {
     expect(geo.projVal).toBeCloseTo(lastActual + geo.slope * TODAY_CFG.fwd, 6)
   })
 
+  it('joins the trend line into one object — past connector ends where the projection starts', () => {
+    const geo = buildChartGeometry(weekly, [], TODAY_CFG)
+    expect(geo.trendPast.endsWith(`L${geo.lastX.toFixed(1)} ${geo.lastY.toFixed(1)}`)).toBe(true)
+    expect(geo.proj.startsWith(`M${geo.lastX.toFixed(1)} ${geo.lastY.toFixed(1)}`)).toBe(true)
+  })
+
+  it('exposes the target line end Y so the component can draw its tick and label', () => {
+    const geo = buildChartGeometry(weekly, [], TODAY_CFG, undefined, [], -1.0)
+    expect(geo.targetProj.endsWith(` ${geo.targetProjY.toFixed(1)}`)).toBe(true)
+    const noTarget = buildChartGeometry(weekly, [], TODAY_CFG)
+    expect(noTarget.targetProjY).toBe(0)
+  })
+
   it('draws one weekly dot per shown week', () => {
     const geo = buildChartGeometry(weekly, [], TODAY_CFG)
     expect(geo.dots).toHaveLength(Math.min(TODAY_CFG.showN, weekly.length))
