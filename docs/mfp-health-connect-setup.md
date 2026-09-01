@@ -69,8 +69,11 @@ Run `supabase/migrations/0004_nutrition.sql` in the Supabase SQL editor. **Done.
 
 ## Reference
 
-- Estimate math: 28-day rolling window, never spans a Cut↔Bulk change, 3500 kcal/lb, needs
-  14+ days of food logs before a number appears.
+- Estimate math: 28-day rolling window, never spans a Cut↔Bulk change, needs 14+ days of food
+  logs before a number appears. Energy density is direction-aware: **3500 kcal/lb** for weight
+  lost (a cut), **3100** for weight gained (a bulk — a gain is part lean tissue and water, so
+  less energy-dense), keyed off the logged phase. Maintain/Deload weeks aren't special-cased —
+  the equation self-corrects for them — but an estimate within ~a week of a deload is shakier.
 - Health Connect live data on your account starts **1 Aug 2026**. Health Connect keeps ~30 days
   and MFP syncs forward-only, so anything earlier is gone unless separately imported.
 - Optional, personal: `scripts/import-mfp-nutrition.py` can scrape older days straight from the

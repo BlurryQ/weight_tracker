@@ -55,6 +55,27 @@ describe('estimateMaintenance', () => {
     expect(est.maintenance).toBe(5250)
   })
 
+  it('costs weight gained on a bulk at the lower gain density', () => {
+    const { entries, nutrition } = scenario(28, { start: 175, lbsPerWeek: 0.5, kcal: 3000 })
+    const phaseLog: PhaseLogEntry[] = [{ start: '2026-06-01', name: 'Bulk' }]
+    const est = estimateMaintenance(entries, nutrition, phaseLog, TODAY)
+
+    expect(est.kind).toBe('ok')
+    // gaining 0.5 lb/wk eating 3000: gain costed at 3100/lb, not 3500 => ~2780 (flat 3500 => 2750)
+    expect(est.maintenance).toBe(2780)
+  })
+
+  it('picks the density from the logged phase, not the sign of the scale trend', () => {
+    // Bulk phase, but the scale is drifting down this window (water/glycogen still settling
+    // after switching in). A scale-sign rule would wrongly use the fat/loss density.
+    const { entries, nutrition } = scenario(28, { start: 180, lbsPerWeek: -0.1, kcal: 3200 })
+    const phaseLog: PhaseLogEntry[] = [{ start: '2026-06-01', name: 'Bulk' }]
+    const est = estimateMaintenance(entries, nutrition, phaseLog, TODAY)
+
+    // 3100/lb (gain) => 3240; a scale-sign choice would use 3500/lb (loss) and give 3250
+    expect(est.maintenance).toBe(3240)
+  })
+
   it('does not average across a Cut/Bulk phase boundary', () => {
     const { entries, nutrition } = scenario(28, { start: 185, lbsPerWeek: -0.5, kcal: 2000 })
     const phaseLog: PhaseLogEntry[] = [
@@ -72,10 +93,11 @@ describe('estimateMaintenance', () => {
 })
 
 describe('targetIntake / intakeAdjustment', () => {
-  it('shifts maintenance by the weekly goal in daily kcal', () => {
-    expect(targetIntake(2500, -1)).toBe(2000)
+  it('shifts maintenance by the weekly goal in daily kcal, at the goal-direction density', () => {
+    expect(targetIntake(2500, -1)).toBe(2000) // cut goal: fat density (3500/lb) -> -500/day
     expect(targetIntake(2500, 0)).toBe(2500)
-    expect(targetIntake(2500, 0.5)).toBe(2750)
+    expect(targetIntake(3000, 0.5)).toBe(3220) // gain goal: 3100/lb -> +~221/day (flat 3500 => 3250)
+    expect(targetIntake(3000, 1)).toBe(3440)
   })
 
   it('reports how far recent intake sits from target', () => {

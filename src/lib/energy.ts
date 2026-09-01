@@ -1,10 +1,18 @@
 import { addDays, diffDays, mondayOf } from './dates'
 import { fitQualityLabel, leastSquaresFit, phaseSpans, type Entry, type PhaseLogEntry } from './math'
 
-/** Body-mass energy equivalent. 3500 kcal per lb of body weight (≈ 7700 kcal/kg) — the standard
- * rough constant for the energy-balance equation. Imperfect over days (water, glycogen) but
- * reasonable over the 2–4 week window this module works on. */
-export const KCAL_PER_LB = 3500
+/** Energy equivalent of body **fat** — the tissue a cut mostly strips. 3500 kcal/lb
+ * (≈ 7700 kcal/kg), the standard energy-balance constant. */
+export const KCAL_PER_LB_LOSS = 3500
+
+/** Energy equivalent of weight **gained** on a bulk — lower than fat, because a gain is part
+ * lean tissue (~70% water), part glycogen + bound water, part gut fill. 3100 is a conservative
+ * blend (mostly fat, a little lean/water); tune down for leaner/faster gains, up for an
+ * advanced lifter whose surplus adds barely any muscle. */
+export const KCAL_PER_LB_GAIN = 3100
+
+/** Back-compat alias — the loss value is the historical single constant. */
+export const KCAL_PER_LB = KCAL_PER_LB_LOSS
 
 /** Rolling window for the maintenance estimate. Four weekly averages' worth: long enough that
  * daily scale noise averages out, short enough that metabolic adaptation and diet changes
@@ -54,10 +62,12 @@ function round10(n: number): number {
   return Math.round(n / 10) * 10
 }
 
-/** Adaptive-TDEE estimate: rearrange `Δweight ≈ (intake − TDEE) · days / 3500` to solve for
- * TDEE over a recent window. The window starts `ESTIMATE_WINDOW_DAYS` back but is pulled
- * forward to the most recent Cut/Bulk phase change if that's more recent, so the average never
- * blends two different diets. */
+/** Adaptive-TDEE estimate: rearrange `Δweight ≈ (intake − TDEE) · days / kcalPerLb` to solve
+ * for TDEE over a recent window, where kcalPerLb is fat density on a cut and the lower gain
+ * density on a bulk (see the constants). The window starts `ESTIMATE_WINDOW_DAYS` back but is
+ * pulled forward to the most recent Cut/Bulk phase change if that's more recent, so the average
+ * never blends two different diets. Maintain/Deload weeks are left in — the equation
+ * self-corrects for them (intake rises as the weight change shrinks). */
 export function estimateMaintenance(
   entries: Entry[],
   nutrition: NutritionEntry[],
@@ -102,7 +112,13 @@ export function estimateMaintenance(
   const fit = leastSquaresFit(weightPts)
   const weightChangeLbs = fit.slope * spanDays
   const meanIntake = mean(calPts.map((n) => n.kcal))
-  const maintenanceRaw = meanIntake - (weightChangeLbs * KCAL_PER_LB) / spanDays
+  // Density of the weight that actually moved: fat on a cut, a leaner mix on a bulk. Keyed off
+  // the logged phase, not the scale sign — so the first flat/down week of a bulk (glycogen and
+  // water still settling) still uses the gain value. Falls back to observed direction only when
+  // there's no phase history at all.
+  const gaining = lastSpan ? lastSpan.dir === 'Bulk' : weightChangeLbs > 0
+  const kcalPerLb = gaining ? KCAL_PER_LB_GAIN : KCAL_PER_LB_LOSS
+  const maintenanceRaw = meanIntake - (weightChangeLbs * kcalPerLb) / spanDays
 
   const completeness = calorieDays / (spanDays + 1)
   const coverageWord = completeness >= 0.9 ? 'Very solid' : completeness >= 0.7 ? 'Reliable' : 'A bit sparse'
@@ -133,10 +149,11 @@ export function estimateMaintenance(
 }
 
 /** Daily calorie target to hit a weekly weight goal: maintenance shifted by the goal's daily
- * energy equivalent. `weeklyTargetLbs` is signed (negative for a cut), so a −1 lb/wk goal
- * subtracts 500/day. */
+ * energy equivalent. `weeklyTargetLbs` is signed — a −1 lb/wk goal subtracts at fat density
+ * (500/day), a +0.5 lb/wk goal adds at the leaner gain density. */
 export function targetIntake(maintenance: number, weeklyTargetLbs: number): number {
-  return round10(maintenance + (weeklyTargetLbs * KCAL_PER_LB) / 7)
+  const kcalPerLb = weeklyTargetLbs < 0 ? KCAL_PER_LB_LOSS : KCAL_PER_LB_GAIN
+  return round10(maintenance + (weeklyTargetLbs * kcalPerLb) / 7)
 }
 
 /** How far recent intake is from the target — negative means "eat this many fewer per day".
