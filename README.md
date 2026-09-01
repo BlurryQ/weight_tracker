@@ -5,6 +5,10 @@ progress by the 7-day rolling average (not the noisy daily number), see weekly a
 with a line of best fit, and ask "if this continues, when do I hit X?" in both directions — set a
 target weight and get a date, or set a date and get a projected weight.
 
+On Android it also reads your daily calories from MyFitnessPal (via Health Connect) and turns the
+weight trend plus intake into an adaptive-TDEE maintenance estimate and a calorie target for your
+weekly goal.
+
 Ships as a web PWA and as a native Android app via Capacitor.
 
 <p align="center">
@@ -22,6 +26,9 @@ Ships as a web PWA and as a native Android app via Capacitor.
   offline write queue in front of it — logging a weigh-in works with no network and syncs when
   back online.
 - **Capacitor** wraps the same web build as a native Android app.
+- **Health Connect** (Android only) through a small custom Kotlin plugin
+  (`android/app/src/main/java/com/blurryq/weighttracker/HealthConnectPlugin.kt`) reads
+  MyFitnessPal's daily calorie totals; the energy-balance math is in `src/lib/energy.ts`.
 - Charts are hand-rolled inline SVG (`src/lib/chartGeometry.ts` + `src/components/chart/`) — no
   charting library.
 
@@ -30,9 +37,9 @@ Ships as a web PWA and as a native Android app via Capacitor.
 ```
 src/
   lib/        pure, unit-tested math: rolling averages, phase spans, least-squares fit,
-              the bidirectional Reach solver, chart geometry
+              the bidirectional Reach solver, chart geometry, adaptive-TDEE energy math
   store/      state shape + reducer + the AppContext that wires in persistence/sync
-  data/       Supabase client, offline queue, sync, auth gate
+  data/       Supabase client, offline queue, sync, auth gate, Health Connect bridge
   components/ shared UI (nav, chart, entry sheet, ui primitives)
   screens/    Today, Trends, History, Setup
 tests/        vitest, run against a fixture of 317 real weigh-ins (tests/fixtures/weight-data.ts)
@@ -62,7 +69,7 @@ Supabase CLI once you're linked to a project). `0001_init.sql` creates the core 
 ### Other scripts
 
 ```bash
-npm test     # vitest — math/chart geometry tests against the real 317-entry fixture
+npm test     # vitest — pure-function tests (math, chart geometry, energy, reducer) vs. the real 317-entry fixture
 npm run lint # oxlint
 npm run build
 ```
@@ -79,6 +86,9 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 Needs a JDK (not just a JRE) and the Android SDK on `$ANDROID_HOME`. The debug APK is unsigned —
 fine for sideloading to your own device, but a release build needs a signing key before wider
 distribution.
+
+The calories feature needs the `READ_NUTRITION` Health Connect permission, requested from the
+Setup screen's "Calories" section. On web builds that section just shows an "Android only" note.
 
 Magic-link sign-in on native builds redirects through a custom `weighttracker://login-callback`
 URL scheme (see `src/data/AuthGate.tsx` and the intent-filter in
