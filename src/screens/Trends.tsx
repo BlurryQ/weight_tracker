@@ -7,7 +7,6 @@ import {
   currentDir,
   currentStreak,
   fitQualityLabel,
-  fitSlope,
   foldedWeeks,
   longestStreak,
   phaseSpans,
@@ -150,7 +149,6 @@ export function Trends() {
   const weekly = weeklyAverages(entries)
   const dir = currentDir(phase, phaseLog)
   const fitK = trendWindow === 99 ? weekly.length : Math.max(4, Math.round(trendWindow / 2))
-  const fit = fitSlope(weekly, fitK)
   const spans = phaseSpans(phaseLog)
 
   const geometry = buildChartGeometry(
@@ -229,8 +227,12 @@ export function Trends() {
 
       <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
         <StatCard label="Change" value={sgn(change)} color={SIGN_COLOR[signColor(toLbs(change, unit), dir)]} />
-        <StatCard label="Fit slope" value={sgn(toDisplay(fit.slope, unit), 2) + '/wk'} color={SIGN_COLOR[signColor(fit.slope, dir)]} />
-        <StatCard label="R²" value={fit.r2.toFixed(2)} note={fitQualityLabel(fit.r2)} />
+        <StatCard
+          label="Fit slope"
+          value={sgn(geometry.slope, 2) + '/wk'}
+          color={SIGN_COLOR[signColor(toLbs(geometry.slope, unit), dir)]}
+        />
+        <StatCard label="R²" value={geometry.r2.toFixed(2)} note={fitQualityLabel(geometry.r2)} />
       </div>
 
       <div style={{ marginTop: 12, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
@@ -260,7 +262,7 @@ export function Trends() {
           </span>
         </div>
         <div style={{ marginTop: 6, font: '500 10px/1.5 "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
-          Fit over the last {trendWindow === 99 ? 'whole log' : `${fitK} weeks`}, R² {fit.r2.toFixed(2)}. Target{' '}
+          Fit over the last {geometry.fitWeeks} weeks, R² {geometry.r2.toFixed(2)}. Target{' '}
           {sgn(toDisplay(state.weeklyTarget, unit), 2)} {unitLabel(unit)}/wk.
         </div>
       </div>

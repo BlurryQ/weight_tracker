@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildChartGeometry } from '../src/lib/chartGeometry'
+import { addDays } from '../src/lib/dates'
 import { fitSlope, phaseSpans, weeklyAverages, type PhaseLogEntry } from '../src/lib/math'
 import { WEIGHT_DATA_FIXTURE } from './fixtures/weight-data'
 
@@ -28,6 +29,22 @@ describe('buildChartGeometry', () => {
     const { slope, r2 } = fitSlope(weekly, TODAY_CFG.fitK)
     expect(geo.slope).toBeCloseTo(slope, 6)
     expect(geo.r2).toBeCloseTo(r2, 6)
+  })
+
+  it('scopes the fit to the current phase, not a trailing window that straddles a Cut/Bulk change', () => {
+    // 20 weeks bulking (+0.4/wk) then 6 weeks cutting (−0.9/wk). 2026-01-05 is a Monday.
+    const synth = Array.from({ length: 26 }, (_, i) => ({
+      monday: addDays('2026-01-05', i * 7),
+      lbs: i < 20 ? 170 + i * 0.4 : 170 + 19 * 0.4 - (i - 19) * 0.9,
+      n: 7,
+    }))
+    const spans = phaseSpans([
+      { start: '2026-01-05', name: 'Bulk' },
+      { start: synth[20].monday, name: 'Cut' },
+    ] as PhaseLogEntry[])
+    // fitK 26 = the whole window, which would otherwise blend the bulk into the cut's slope.
+    const geo = buildChartGeometry(synth, spans, { ...TODAY_CFG, showN: 26, fitK: 26 })
+    expect(geo.slope).toBeCloseTo(-0.9, 1) // the cut's rate, not a near-flat bulk+cut blend
   })
 
   it('anchors the projection at the last actual point plus slope*weeks, not the fit intercept', () => {

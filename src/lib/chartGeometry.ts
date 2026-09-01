@@ -51,6 +51,9 @@ export interface ChartGeometry {
   projY: number
   slope: number
   r2: number
+  /** How many trailing weekly points actually fed the fit — `fitK`, or fewer when the fit was
+   * clamped to the current phase. */
+  fitWeeks: number
   projVal: number
   projDate: string
   first: number
@@ -75,6 +78,7 @@ const EMPTY_GEOMETRY: ChartGeometry = {
   projY: 0,
   slope: 0,
   r2: 0,
+  fitWeeks: 0,
   projVal: 0,
   projDate: '',
   first: 0,
@@ -103,7 +107,15 @@ export function buildChartGeometry(
   const slots = n - 1 + cfg.fwd
   const k = Math.min(cfg.fitK, n)
   const pts = show.map((w, i) => ({ x: i, y: convert(w.lbs) }))
-  const fit = leastSquaresFit(pts.slice(n - k))
+
+  // Fit inside the current phase only. On wide windows the trailing `k` weeks can straddle the
+  // last Cut↔Bulk change, averaging two opposite slopes into a meaningless rate (and a
+  // misleading projection). Start the fit at whichever is later — `k` weeks back, or the
+  // current phase's first shown week — but keep at least 3 weekly points in the regression.
+  const spanStart = spans.length ? spans[spans.length - 1].start : ''
+  const spanIdx = spanStart ? show.findIndex((w) => w.monday >= spanStart) : 0
+  const fitStart = Math.max(0, Math.min(Math.max(n - k, spanIdx < 0 ? 0 : spanIdx), n - 3))
+  const fit = leastSquaresFit(pts.slice(fitStart))
   const fittedAt = (i: number) => fit.intercept + fit.slope * i
   // Anchored at the last actual point, not the regression's fitted value there — using the
   // intercept would make a flat all-time fit project above/below current weight (real bug).
@@ -112,7 +124,7 @@ export function buildChartGeometry(
   // exactly on target" for comparison against the real projection.
   const targetProjected = targetSlopeLbs != null ? pts[n - 1].y + convert(targetSlopeLbs) * cfg.fwd : null
 
-  const allValues = pts.map((p) => p.y).concat([projected, fittedAt(n - k), fittedAt(n - 1)])
+  const allValues = pts.map((p) => p.y).concat([projected, fittedAt(fitStart), fittedAt(n - 1)])
   if (targetProjected != null) allValues.push(targetProjected)
   const lo = Math.min(...allValues) - 1.2
   const hi = Math.max(...allValues) + 1.2
@@ -122,7 +134,7 @@ export function buildChartGeometry(
   const line = pts.map((p, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(p.y).toFixed(1)).join(' ')
   const area = line + ' L' + X(n - 1).toFixed(1) + ' ' + cfg.H + ' L0 ' + cfg.H + ' Z'
   const fitPath =
-    'M' + X(n - k).toFixed(1) + ' ' + Y(fittedAt(n - k)).toFixed(1) + ' L' + X(n - 1).toFixed(1) + ' ' + Y(fittedAt(n - 1)).toFixed(1)
+    'M' + X(fitStart).toFixed(1) + ' ' + Y(fittedAt(fitStart)).toFixed(1) + ' L' + X(n - 1).toFixed(1) + ' ' + Y(fittedAt(n - 1)).toFixed(1)
   const proj =
     'M' + X(n - 1).toFixed(1) + ' ' + Y(pts[n - 1].y).toFixed(1) + ' L' + X(slots).toFixed(1) + ' ' + Y(projected).toFixed(1)
   const targetProj =
@@ -184,6 +196,7 @@ export function buildChartGeometry(
     projY: Y(projected),
     slope: fit.slope,
     r2: fit.r2,
+    fitWeeks: n - fitStart,
     projVal: projected,
     projDate: addDays(lastMonday, cfg.fwd * 7),
     first: pts[0].y,
