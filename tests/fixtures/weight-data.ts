@@ -1,5 +1,5 @@
-// Real 317-day weight history, copied from design_handoff_weight_tracker/weight-data.js
-// (data fixture for tests, not prototype code) and cross-checked against the source CSV.
+// Real 317-day weight history (data fixture for tests), parsed from the source
+// spreadsheet and cross-checked against it.
 import type { Entry } from '../../src/lib/math'
 
 export const WEIGHT_DATA_FIXTURE: Entry[] = [

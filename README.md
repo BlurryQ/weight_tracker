@@ -37,9 +37,8 @@ src/
   screens/    Today, Trends, History, Setup
 tests/        vitest, run against a fixture of 317 real weigh-ins (tests/fixtures/weight-data.ts)
 supabase/
-  migrations/ 0001 schema (entries, phase_log, settings + RLS), 0002/0003 one-time data imports
+  migrations/ 0001 schema (entries, phase_log, settings + RLS), 0004 daily_nutrition
 android/      Capacitor-generated native project
-design_handoff_weight_tracker/   the original design spec this was built from (reference only)
 ```
 
 ## Local development
@@ -57,8 +56,8 @@ boot with no entries (log a weigh-in to get started).
 ### Database setup
 
 Run the migrations in `supabase/migrations/` in order via the Supabase SQL Editor (or the
-Supabase CLI once you're linked to a project). `0001_init.sql` creates the schema; `0002`/`0003`
-were one-time personal data imports and only need running once.
+Supabase CLI once you're linked to a project). `0001_init.sql` creates the core schema;
+`0004_nutrition.sql` adds the `daily_nutrition` table for the calories feature.
 
 ### Other scripts
 
