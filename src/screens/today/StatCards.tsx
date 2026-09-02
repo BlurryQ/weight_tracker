@@ -3,8 +3,8 @@ import type { Unit } from '../../store/types'
 import type { SignColor } from '../../lib/math'
 
 const SIGN_COLOR: Record<SignColor, string> = {
-  lime: 'var(--lime)',
-  red: 'var(--red)',
+  lime: 'var(--sign-good)', // +/- deltas stay green/red, independent of the magenta accent
+  red: 'var(--sign-bad)',
   grey: 'var(--text-muted)',
 }
 

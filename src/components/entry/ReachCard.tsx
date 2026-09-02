@@ -112,7 +112,7 @@ export function ReachCard({
               alignItems: 'baseline',
               gap: 8,
               cursor: 'pointer',
-              borderBottom: '1.5px dashed oklch(0.82 0.17 128 / .6)',
+              borderBottom: '1.5px dashed color-mix(in oklch, var(--accent) 60%, transparent)',
               paddingBottom: 2,
               width: 'fit-content',
             }}

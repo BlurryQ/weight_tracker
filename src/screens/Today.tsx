@@ -21,20 +21,20 @@ import { ReachCard } from '../components/entry/ReachCard'
 import { PaceRing } from './today/PaceRing'
 import { StatCards } from './today/StatCards'
 
-const SIGN_COLOR = { lime: 'var(--lime)', red: 'var(--red)', grey: 'var(--text-muted)' } as const
+const SIGN_COLOR = { lime: 'var(--sign-good)', red: 'var(--sign-bad)', grey: 'var(--text-muted)' } as const
 
 const CHIP_COLORS = {
   Cut: {
-    bg: 'oklch(0.82 0.17 128 / .13)',
-    border: 'oklch(0.82 0.17 128 / .3)',
-    dot: 'var(--lime)',
-    text: 'var(--lime-text)',
+    bg: 'color-mix(in oklch, var(--cut) 13%, transparent)',
+    border: 'color-mix(in oklch, var(--cut) 30%, transparent)',
+    dot: 'var(--cut)',
+    text: 'var(--accent-text)',
   },
   Bulk: {
-    bg: 'oklch(0.76 0.13 235 / .14)',
-    border: 'oklch(0.76 0.13 235 / .35)',
-    dot: 'var(--blue)',
-    text: 'var(--blue)',
+    bg: 'color-mix(in oklch, var(--bulk) 14%, transparent)',
+    border: 'color-mix(in oklch, var(--bulk) 35%, transparent)',
+    dot: 'var(--bulk)',
+    text: 'var(--bulk-text)',
   },
 }
 
@@ -55,8 +55,8 @@ export function Today() {
           style={{
             padding: '13px 20px',
             borderRadius: 999,
-            background: 'var(--lime)',
-            color: '#0b0c0b',
+            background: 'var(--accent)',
+            color: 'var(--on-accent)',
             font: '700 13px/1 "Barlow Condensed", sans-serif',
             letterSpacing: '0.18em',
             textTransform: 'uppercase',
@@ -110,7 +110,7 @@ export function Today() {
           textColor={chipColors.text}
           onClick={() => dispatch({ type: 'SET_SCREEN', screen: 'setup' })}
         />
-        <span style={{ font: '500 11px "IBM Plex Mono", monospace', color: '#5c6159' }}>{shortDate(today)}</span>
+        <span style={{ font: '500 11px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>{shortDate(today)}</span>
       </div>
 
       <div style={{ marginTop: 20, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -172,7 +172,7 @@ export function Today() {
           <button
             type="button"
             onClick={() => dispatch({ type: 'SET_SCREEN', screen: 'trends' })}
-            style={{ font: '500 10.5px "IBM Plex Mono", monospace', color: 'var(--lime)', cursor: 'pointer' }}
+            style={{ font: '500 10.5px "IBM Plex Mono", monospace', color: 'var(--accent)', cursor: 'pointer' }}
           >
             all trends →
           </button>

@@ -20,8 +20,8 @@ import { WeightChart } from '../components/chart/WeightChart'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
 
 const SIGN_COLOR: Record<SignColor, string> = {
-  lime: 'var(--lime)',
-  red: 'var(--red)',
+  lime: 'var(--sign-good)', // +/- deltas stay green/red, independent of the magenta accent
+  red: 'var(--sign-bad)',
   grey: 'var(--text-muted)',
 }
 
@@ -103,7 +103,7 @@ function MaintenanceCard({
                   : `add ~${kcal(adj)}/day to your recent ${kcal(est.meanIntake ?? 0)}`
             return (
               <div style={{ marginTop: 8, font: '500 11px/1.6 "IBM Plex Mono", monospace', color: 'var(--text-secondary)' }}>
-                Target {rate} → <strong style={{ color: 'var(--lime)' }}>{kcal(target)} cal/day</strong>
+                Target {rate} → <strong style={{ color: 'var(--accent)' }}>{kcal(target)} cal/day</strong>
                 <br />
                 <span style={{ color: 'var(--text-dim)' }}>{move}</span>
               </div>
@@ -191,7 +191,7 @@ export function Trends() {
 
       <div style={{ marginTop: 14, display: 'flex', alignItems: 'baseline', gap: 18 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
-          <span style={{ font: '700 20px/1 "Barlow Condensed", sans-serif', color: 'var(--lime)' }}>{streak}</span>
+          <span style={{ font: '700 20px/1 "Barlow Condensed", sans-serif', color: 'var(--cyan)' }}>{streak}</span>
           <span style={{ font: '500 9px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
             day{streak === 1 ? '' : 's'} streak
           </span>

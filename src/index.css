@@ -8,6 +8,14 @@
 @import '@fontsource/ibm-plex-mono/latin-600.css';
 
 :root {
+  /* ────────────────────────────────────────────────────────────
+     PLUMBING PASS — token names only. Every value here is the
+     current lime/ink palette, unchanged; this commit is a no-op
+     refactor that just gives the ~20 scattered hex/oklch literals
+     (and the three local SIGN_COLOR maps) one named home each.
+     The Neon value flip is a separate diff on top of this.
+     ──────────────────────────────────────────────────────────── */
+
   /* Surfaces */
   --bg: #0b0c0b;
   --surface: #131513;
@@ -18,22 +26,57 @@
   --divider: #1c201b;
   --chart-marker: #2b302a;
 
-  /* Text */
+  /* Text ramp. --text-muted is genuine desaturated grey on purpose:
+     the muted-vs-vivid gap is what separates the real trend line
+     from the target reference line on the chart. */
   --text-primary: #f2f4ef;
   --text-secondary: #e7eae3;
   --text-muted: #7a8474;
   --text-dim: #5f655d;
   --text-disabled: #3a403a;
 
-  /* Accent (lime) */
-  --lime: oklch(0.82 0.17 128);
-  --lime-hover: oklch(0.88 0.17 128);
-  --lime-text: oklch(0.86 0.14 128);
+  /* Accent — the single "act on this / headline" colour. */
+  --accent: oklch(0.82 0.17 128);
+  --accent-hover: oklch(0.88 0.17 128);
+  --accent-text: oklch(0.86 0.14 128);
+  --accent-glow: oklch(0.82 0.17 128 / 0.3); /* FAB drop-shadow */
+  --on-accent: #0b0c0b; /* text/glyphs sitting on an accent fill */
 
-  /* Phase / status */
-  --red: oklch(0.68 0.15 25);
-  --blue: oklch(0.76 0.13 235);
-  --amber: oklch(0.78 0.15 75);
+  /* Secondary accent — "on track / positive progress": on-pace ring,
+     streak. Equal to the accent today; diverges under Neon. */
+  --cyan: oklch(0.82 0.17 128);
+  --cyan-text: oklch(0.86 0.14 128);
+
+  /* Phase / status. */
+  --cut: oklch(0.82 0.17 128);
+  --bulk: oklch(0.76 0.13 235);
+  --bulk-text: oklch(0.76 0.13 235); /* Bulk chip label on Today */
+  --amber: oklch(0.78 0.15 75); /* off-pace */
+  --red: oklch(0.68 0.15 25); /* destructive / delete */
+
+  /* +/- weigh-in deltas. Independent of the accent so gained/lost
+     weight stays green/red no matter what the accent becomes. */
+  --sign-good: oklch(0.82 0.17 128);
+  --sign-bad: oklch(0.68 0.15 25);
+
+  /* Chart phase bands — drawn behind the data line. */
+  --band-cut-fill: oklch(0.82 0.17 128 / 0.05);
+  --band-cut-edge: oklch(0.82 0.17 128 / 0.22);
+  --band-cut-label: oklch(0.7 0.12 128);
+  --band-bulk-fill: oklch(0.76 0.13 235 / 0.07);
+  --band-bulk-edge: oklch(0.76 0.13 235 / 0.28);
+  --band-bulk-label: oklch(0.76 0.13 235);
+  --band-marker: rgba(255, 255, 255, 0.4); /* phase-change divider */
+
+  /* Phase tags (History rows). */
+  --phase-tag-cut: oklch(0.7 0.12 128);
+  --phase-tag-bulk: oklch(0.76 0.13 235);
+
+  /* Back-compat aliases for literals not yet repointed. */
+  --lime: var(--accent);
+  --lime-hover: var(--accent-hover);
+  --lime-text: var(--accent-text);
+  --blue: var(--bulk);
 
   /* Type */
   --font-display: 'Barlow Condensed', sans-serif;
