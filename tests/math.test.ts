@@ -10,6 +10,7 @@ import {
   fitSlope,
   foldedWeeks,
   groupWeeksBySpan,
+  hasFoldedWeek,
   leastSquaresFit,
   longestStreak,
   paceLabel,
@@ -457,13 +458,32 @@ describe('phaseAnchoredShowN', () => {
     expect(phaseAnchoredShowN(weekly, log, 'phaseStart')).toBe(20)
   })
 
-  it('lastDeload mode counts weeks since the most recent Deload/Maintain week', () => {
+  it('lastDeload mode counts weeks since the most recent Deload week', () => {
     const log: PhaseLogEntry[] = [
       { start: '2026-04-20', name: 'Cut' },
       { start: addDays('2026-04-20', 10 * 7), name: 'Deload' }, // week index 10
     ]
     // last weekly monday is week index 19 -> 19-10+1 = 10 weeks since the deload.
     expect(phaseAnchoredShowN(weekly, log, 'lastDeload')).toBe(10)
+  })
+
+  it('lastMaintain mode counts weeks since the most recent Maintain week', () => {
+    const log: PhaseLogEntry[] = [
+      { start: '2026-04-20', name: 'Cut' },
+      { start: addDays('2026-04-20', 15 * 7), name: 'Maintain' }, // week index 15
+    ]
+    // last weekly monday is week index 19 -> 19-15+1 = 5 weeks since the maintain week.
+    expect(phaseAnchoredShowN(weekly, log, 'lastMaintain')).toBe(5)
+  })
+
+  it('lastDeload and lastMaintain track independently — one logged does not satisfy the other', () => {
+    const log: PhaseLogEntry[] = [
+      { start: '2026-04-20', name: 'Cut' },
+      { start: addDays('2026-04-20', 10 * 7), name: 'Deload' },
+    ]
+    // No Maintain week logged at all -> lastMaintain falls back to the phase-start anchor (20),
+    // even though a Deload week exists.
+    expect(phaseAnchoredShowN(weekly, log, 'lastMaintain')).toBe(phaseAnchoredShowN(weekly, log, 'phaseStart'))
   })
 
   it('lastDeload falls back to the phase-start anchor when nothing has been logged yet', () => {
@@ -479,6 +499,22 @@ describe('phaseAnchoredShowN', () => {
   it('caps at however much history actually exists', () => {
     const log: PhaseLogEntry[] = [{ start: '2000-01-03', name: 'Cut' }] // long before any data
     expect(phaseAnchoredShowN(weekly, log, 'phaseStart')).toBe(weekly.length)
+  })
+})
+
+describe('hasFoldedWeek', () => {
+  it('is true only when that specific name has been logged', () => {
+    const log: PhaseLogEntry[] = [
+      { start: '2026-04-20', name: 'Cut' },
+      { start: '2026-06-01', name: 'Deload' },
+    ]
+    expect(hasFoldedWeek(log, 'Deload')).toBe(true)
+    expect(hasFoldedWeek(log, 'Maintain')).toBe(false)
+  })
+
+  it('is false for an empty log', () => {
+    expect(hasFoldedWeek([], 'Deload')).toBe(false)
+    expect(hasFoldedWeek([], 'Maintain')).toBe(false)
   })
 })
 

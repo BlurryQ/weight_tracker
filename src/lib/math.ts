@@ -367,20 +367,37 @@ export function groupWeeksBySpan(weekly: WeeklyAverage[], log: PhaseLogEntry[]):
 
 // --- Trends phase-anchored window ------------------------------------
 
-export type TrendWindowMode = 'weeks' | 'phaseStart' | 'lastDeload'
+export type TrendWindowMode = 'weeks' | 'phaseStart' | 'lastDeload' | 'lastMaintain'
+
+export type PhaseAnchorMode = Exclude<TrendWindowMode, 'weeks'>
+
+/** Whether a `lastDeload`/`lastMaintain` anchor actually has a logged week to anchor to — the
+ * Trends anchor picker hides an anchor entirely (rather than showing a dead toggle) when this
+ * is false. */
+export function hasFoldedWeek(log: PhaseLogEntry[], name: 'Deload' | 'Maintain'): boolean {
+  return dedupePhaseLog(log).some((p) => p.name === name)
+}
 
 /** How many trailing weekly points to show when the window is anchored to a phase event instead
- * of a fixed week count. Anchor = the current Cut/Bulk span's start (`phaseStart`) or the most
- * recent Deload/Maintain week (`lastDeload`, falling back to the phase-start anchor when none
- * has been logged yet — avoids an undefined window rather than a genuinely different anchor).
- * Floored at 3 weeks (the chart already needs >=2 points to render at all) and capped at however
- * much history actually exists. */
-export function phaseAnchoredShowN(weekly: WeeklyAverage[], log: PhaseLogEntry[], mode: 'phaseStart' | 'lastDeload'): number {
+ * of a fixed week count. Anchor = the current Cut/Bulk span's start (`phaseStart`), the most
+ * recent Deload week (`lastDeload`), or the most recent Maintain week (`lastMaintain`) — any of
+ * the latter two fall back to the phase-start anchor when none has been logged yet, avoiding an
+ * undefined window rather than a genuinely different anchor. Floored at 3 weeks (the chart
+ * already needs >=2 points to render at all) and capped at however much history actually
+ * exists. */
+export function phaseAnchoredShowN(weekly: WeeklyAverage[], log: PhaseLogEntry[], mode: PhaseAnchorMode): number {
   if (!weekly.length) return 0
   const spans = phaseSpans(log)
   const phaseStartAnchor = spans.length ? spans[spans.length - 1].start : weekly[0].monday
-  const folded = foldedWeeks(log)
-  const anchor = mode === 'lastDeload' && folded.length ? folded[folded.length - 1] : phaseStartAnchor
+
+  let anchor = phaseStartAnchor
+  if (mode !== 'phaseStart') {
+    const foldedName = mode === 'lastDeload' ? 'Deload' : 'Maintain'
+    const folded = dedupePhaseLog(log)
+      .filter((p) => p.name === foldedName)
+      .map((p) => mondayOf(p.start))
+    if (folded.length) anchor = folded[folded.length - 1]
+  }
 
   const lastMonday = weekly[weekly.length - 1].monday
   const weeksSince = Math.floor(diffDays(mondayOf(anchor), lastMonday) / 7) + 1

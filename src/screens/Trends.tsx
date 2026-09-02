@@ -7,6 +7,7 @@ import {
   fitQualityLabel,
   fitSlope,
   foldedWeeks,
+  hasFoldedWeek,
   phaseAnchoredShowN,
   phaseSpans,
   projectionWeeks,
@@ -14,10 +15,11 @@ import {
   solveByDate,
   solveByWeight,
   weeklyAverages,
+  type PhaseAnchorMode,
   type SignColor,
 } from '../lib/math'
 import { useApp } from '../store/AppContext'
-import type { TrendWindow, TrendWindowMode } from '../store/types'
+import type { TrendWindow } from '../store/types'
 import { WeightChart } from '../components/chart/WeightChart'
 import { ReachCard } from '../components/entry/ReachCard'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
@@ -29,17 +31,56 @@ const SIGN_COLOR: Record<SignColor, string> = {
   grey: 'var(--text-muted)',
 }
 
-const WINDOW_OPTIONS: { value: TrendWindow; label: string }[] = [
+const WINDOW_OPTIONS: { value: TrendWindow | 'phase'; label: string }[] = [
   { value: 8, label: '8W' },
   { value: 13, label: '3M' },
   { value: 26, label: '6M' },
   { value: 99, label: 'ALL' },
+  { value: 'phase', label: 'PHASE' },
 ]
 
-const PHASE_ANCHOR_OPTIONS: { value: Extract<TrendWindowMode, 'phaseStart' | 'lastDeload'>; label: string }[] = [
-  { value: 'phaseStart', label: 'Since phase start' },
-  { value: 'lastDeload', label: 'Since last deload' },
-]
+const ANCHOR_LABELS: Record<PhaseAnchorMode, string> = {
+  phaseStart: 'this phase',
+  lastDeload: 'last deload',
+  lastMaintain: 'last maintain',
+}
+
+/** A thin single-line anchor picker — appears only while PHASE is the active window segment.
+ * Unavailable anchors (no Deload/Maintain week logged yet) are hidden outright rather than shown
+ * disabled, so the line never reserves space for a toggle that can't do anything. */
+function PhaseAnchorLine({
+  mode,
+  onChange,
+  available,
+}: {
+  mode: PhaseAnchorMode
+  onChange: (mode: PhaseAnchorMode) => void
+  available: Record<PhaseAnchorMode, boolean>
+}) {
+  const anchors = (['phaseStart', 'lastDeload', 'lastMaintain'] as const).filter((a) => available[a])
+
+  return (
+    <div style={{ marginTop: 8, display: 'flex', alignItems: 'baseline', gap: 5, lineHeight: '18px', whiteSpace: 'nowrap' }}>
+      <span style={{ font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>anchored:</span>
+      {anchors.map((a, i) => (
+        <span key={a} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>
+          <button
+            type="button"
+            onClick={() => onChange(a)}
+            style={{
+              cursor: 'pointer',
+              font: mode === a ? '700 10px "IBM Plex Mono", monospace' : '500 10px "IBM Plex Mono", monospace',
+              color: mode === a ? 'var(--accent)' : 'var(--text-dim)',
+            }}
+          >
+            {ANCHOR_LABELS[a]}
+          </button>
+          {i < anchors.length - 1 && <span style={{ color: 'var(--text-dim)' }}>·</span>}
+        </span>
+      ))}
+    </div>
+  )
+}
 
 function StatCard({ label, value, color, note }: { label: string; value: string; color?: string; note?: string }) {
   return (
@@ -103,6 +144,12 @@ export function Trends() {
     state.weeklyTarget,
   )
 
+  const anchorAvailable: Record<PhaseAnchorMode, boolean> = {
+    phaseStart: true,
+    lastDeload: hasFoldedWeek(phaseLog, 'Deload'),
+    lastMaintain: hasFoldedWeek(phaseLog, 'Maintain'),
+  }
+
   // completionRatio already clamps to the first-ever entry, so a big sentinel safely means "all".
   const completion = completionRatio(entries, trendWindowMode === 'weeks' && trendWindow === 99 ? 9999 : showN, today)
 
@@ -149,7 +196,7 @@ export function Trends() {
         <WeightChart geometry={geometry} W={316} H={184} gutter={32} variant="trends" />
       </div>
 
-      <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ marginTop: 20 }}>
         <span
           style={{
             font: '600 9.5px/1 "Barlow Condensed", sans-serif',
@@ -160,49 +207,33 @@ export function Trends() {
         >
           Window
         </span>
-        {/* PHASE is a mode, not a duration, so it sits beside the duration control rather than as
-            a 5th equal segment inside it. The duration control still shows trendWindow's own
-            value underneath, even while PHASE mode is overriding it for the chart/completion
-            math above — flipping PHASE off returns to exactly that duration. */}
-        <button
-          type="button"
-          onClick={() => dispatch({ type: 'SET_TREND_WINDOW_MODE', mode: trendWindowMode === 'weeks' ? 'phaseStart' : 'weeks' })}
-          style={{
-            padding: '6px 14px',
-            borderRadius: 999,
-            background: trendWindowMode !== 'weeks' ? 'var(--accent)' : 'var(--bg)',
-            color: trendWindowMode !== 'weeks' ? 'var(--on-accent)' : 'var(--text-dim)',
-            font: '600 10px/1 "Barlow Condensed", sans-serif',
-            letterSpacing: '0.14em',
-            textTransform: 'uppercase',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          Phase
-        </button>
       </div>
 
       <div style={{ marginTop: 8 }}>
         <SegmentedControl
           size="lg"
-          value={trendWindow}
-          onChange={(window) => {
-            dispatch({ type: 'SET_TREND_WINDOW_MODE', mode: 'weeks' })
-            dispatch({ type: 'SET_TREND_WINDOW', window })
+          value={trendWindowMode === 'weeks' ? trendWindow : 'phase'}
+          onChange={(picked) => {
+            if (picked === 'phase') {
+              // Clicking PHASE while it's already the active segment leaves whichever anchor was
+              // picked alone — only a fresh weeks -> phase transition needs a default.
+              if (trendWindowMode === 'weeks') dispatch({ type: 'SET_TREND_WINDOW_MODE', mode: 'phaseStart' })
+            } else {
+              dispatch({ type: 'SET_TREND_WINDOW_MODE', mode: 'weeks' })
+              dispatch({ type: 'SET_TREND_WINDOW', window: picked })
+            }
           }}
           options={WINDOW_OPTIONS}
         />
       </div>
 
+      {/* Collapses away entirely (no reserved space) outside PHASE mode. */}
       {trendWindowMode !== 'weeks' && (
-        <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
-          <SegmentedControl
-            value={trendWindowMode}
-            onChange={(mode) => dispatch({ type: 'SET_TREND_WINDOW_MODE', mode })}
-            options={PHASE_ANCHOR_OPTIONS}
-          />
-        </div>
+        <PhaseAnchorLine
+          mode={trendWindowMode}
+          onChange={(mode) => dispatch({ type: 'SET_TREND_WINDOW_MODE', mode })}
+          available={anchorAvailable}
+        />
       )}
 
       <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
