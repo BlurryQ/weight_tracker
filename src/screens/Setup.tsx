@@ -55,7 +55,7 @@ function DataStat({ label, value }: { label: string; value: string }) {
 
 export function Setup() {
   const { state, dispatch } = useApp()
-  const { phase, phaseStart, phaseLog, weeklyTarget, unit, entries, nutrition } = state
+  const { phase, phaseStart, phaseLog, weeklyTarget, unit, entries, nutrition, pendingPhase } = state
   const today = todayIso()
   const dir = currentDir(phase, phaseLog)
   const phaseWeek = Math.floor(diffDays(mondayOf(phaseStart), today) / 7) + 1
@@ -101,29 +101,51 @@ export function Setup() {
         <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, alignItems: 'stretch' }}>
           {PHASES.map((p) => {
             const selected = phase === p.name
+            const pending = pendingPhase === p.name
             return (
               <button
                 key={p.name}
                 type="button"
-                onClick={() => {
-                  dispatch({ type: 'SET_PHASE', phase: p.name })
-                  dispatch({ type: 'SHOW_TOAST', message: `${p.name} started — week 1` })
-                }}
+                onClick={() => dispatch({ type: 'STAGE_PHASE', phase: p.name })}
                 style={{
+                  position: 'relative',
                   cursor: 'pointer',
                   padding: '13px 14px',
                   borderRadius: 14,
-                  background: selected ? 'color-mix(in oklch, var(--accent) 12%, transparent)' : 'var(--surface)',
-                  border: selected ? '1.5px solid var(--accent)' : '1.5px solid var(--surface)',
+                  background: selected
+                    ? 'color-mix(in oklch, var(--accent) 12%, transparent)'
+                    : pending
+                      ? 'transparent'
+                      : 'var(--surface)',
+                  border: selected
+                    ? '1.5px solid var(--accent)'
+                    : pending
+                      ? '1.5px dashed var(--accent)'
+                      : '1.5px solid var(--surface)',
                   textAlign: 'left',
                 }}
               >
+                {pending && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      font: '700 7px/1 "Barlow Condensed", sans-serif',
+                      letterSpacing: '0.1em',
+                      textTransform: 'uppercase',
+                      color: 'var(--accent)',
+                    }}
+                  >
+                    pending
+                  </span>
+                )}
                 <div
                   style={{
                     font: '700 16px/1.2 "Barlow Condensed", sans-serif',
                     letterSpacing: '0.06em',
                     textTransform: 'uppercase',
-                    color: selected ? 'var(--accent-text)' : 'var(--text-secondary)',
+                    color: selected ? 'var(--accent-text)' : pending ? 'var(--accent)' : 'var(--text-secondary)',
                   }}
                 >
                   {p.name}
@@ -135,6 +157,33 @@ export function Setup() {
             )
           })}
         </div>
+
+        {/* Tapping a card only stages it — this is the deliberate second tap that actually
+            commits SET_PHASE, so a mistap on the grid above can't silently start a bulk. */}
+        {pendingPhase && (
+          <button
+            type="button"
+            onClick={() => {
+              dispatch({ type: 'COMMIT_PHASE_CHANGE' })
+              dispatch({ type: 'SHOW_TOAST', message: `${pendingPhase} started` })
+            }}
+            style={{
+              marginTop: 10,
+              width: '100%',
+              cursor: 'pointer',
+              padding: '12px 15px',
+              borderRadius: 14,
+              background: 'var(--accent)',
+              color: 'var(--on-accent)',
+              font: '700 12px/1 "Barlow Condensed", sans-serif',
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              textAlign: 'center',
+            }}
+          >
+            Start {pendingPhase}
+          </button>
+        )}
 
         <div style={{ marginTop: 10, font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
           or tag just this week, without resetting the phase:

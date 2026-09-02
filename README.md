@@ -44,7 +44,8 @@ src/
   screens/    Today, Trends, History, Setup
 tests/        vitest, run against a fixture of 317 real weigh-ins (tests/fixtures/weight-data.ts)
 supabase/
-  migrations/ 0001 schema (entries, phase_log, settings + RLS), 0004 daily_nutrition
+  migrations/ 0001 schema (entries, phase_log, settings + RLS), 0004 daily_nutrition,
+              0006-0007 Trends' phase-anchored window mode, 0008 drops dead columns
 android/      Capacitor-generated native project
 ```
 
@@ -64,7 +65,10 @@ boot with no entries (log a weigh-in to get started).
 
 Run the migrations in `supabase/migrations/` in order via the Supabase SQL Editor (or the
 Supabase CLI once you're linked to a project). `0001_init.sql` creates the core schema;
-`0004_nutrition.sql` adds the `daily_nutrition` table for the calories feature.
+`0004_nutrition.sql` adds the `daily_nutrition` table for the calories feature; `0006` and
+`0007_trend_window_mode_maintain.sql` add Trends' phase-anchored window mode (`weeks` /
+`phaseStart` / `lastDeload` / `lastMaintain`); `0008_drop_dead_columns.sql` drops two columns
+the app never ended up reading or writing (`settings.trend_horizon`, `daily_nutrition.source`).
 
 ### Other scripts
 

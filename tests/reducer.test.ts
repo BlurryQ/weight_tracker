@@ -19,6 +19,96 @@ describe('reducer — SET_PHASE', () => {
   })
 })
 
+describe('reducer — STAGE_PHASE / COMMIT_PHASE_CHANGE / UNDO_PHASE_CHANGE (the staged commit)', () => {
+  it('STAGE_PHASE sets pendingPhase only — phase/phaseStart/phaseLog are untouched', () => {
+    const state = { ...initialState(), phase: 'Cut' as const, phaseStart: '2026-08-03' }
+    const next = reducer(state, { type: 'STAGE_PHASE', phase: 'Bulk' })
+    expect(next.pendingPhase).toBe('Bulk')
+    expect(next.phase).toBe('Cut')
+    expect(next.phaseStart).toBe('2026-08-03')
+    expect(next.phaseLog).toBe(state.phaseLog)
+  })
+
+  it('STAGE_PHASE on the already-current phase is a no-op when nothing is pending', () => {
+    const state = { ...initialState(), phase: 'Cut' as const, pendingPhase: null }
+    const next = reducer(state, { type: 'STAGE_PHASE', phase: 'Cut' })
+    expect(next).toBe(state)
+  })
+
+  it('STAGE_PHASE on the already-current phase clears a stray pending selection', () => {
+    const state = { ...initialState(), phase: 'Cut' as const, pendingPhase: 'Bulk' as const }
+    const next = reducer(state, { type: 'STAGE_PHASE', phase: 'Cut' })
+    expect(next.pendingPhase).toBeNull()
+  })
+
+  it('STAGE_PHASE on the already-staged phase again cancels the staging', () => {
+    const state = { ...initialState(), phase: 'Cut' as const, pendingPhase: 'Bulk' as const }
+    const next = reducer(state, { type: 'STAGE_PHASE', phase: 'Bulk' })
+    expect(next.pendingPhase).toBeNull()
+  })
+
+  it('STAGE_PHASE on a different phase replaces whatever was staged', () => {
+    const state = { ...initialState(), phase: 'Cut' as const, pendingPhase: 'Bulk' as const }
+    const next = reducer(state, { type: 'STAGE_PHASE', phase: 'Maintain' })
+    expect(next.pendingPhase).toBe('Maintain')
+  })
+
+  it('COMMIT_PHASE_CHANGE with nothing staged is a no-op', () => {
+    const state = { ...initialState(), phase: 'Cut' as const, pendingPhase: null }
+    const next = reducer(state, { type: 'COMMIT_PHASE_CHANGE' })
+    expect(next.phase).toBe('Cut')
+    expect(next.pendingPhase).toBeNull()
+    expect(next.phaseUndo).toBeNull()
+  })
+
+  it('COMMIT_PHASE_CHANGE applies the staged phase and stashes the pre-change state for undo', () => {
+    const state = {
+      ...initialState(),
+      phase: 'Cut' as const,
+      phaseStart: '2026-08-03',
+      phaseLog: [{ start: '2026-08-03', name: 'Cut' as const }],
+      pendingPhase: 'Bulk' as const,
+    }
+    const next = reducer(state, { type: 'COMMIT_PHASE_CHANGE' })
+    expect(next.phase).toBe('Bulk')
+    expect(next.phaseStart).toBe(today())
+    expect(next.phaseLog[next.phaseLog.length - 1]).toEqual({ start: today(), name: 'Bulk' })
+    expect(next.pendingPhase).toBeNull()
+    expect(next.phaseUndo).toEqual({ phase: 'Cut', phaseStart: '2026-08-03', phaseLog: state.phaseLog })
+  })
+
+  it('UNDO_PHASE_CHANGE with nothing stashed is a no-op', () => {
+    const state = { ...initialState(), phaseUndo: null }
+    const next = reducer(state, { type: 'UNDO_PHASE_CHANGE' })
+    expect(next).toBe(state)
+  })
+
+  it('UNDO_PHASE_CHANGE restores the stashed phase/phaseStart/phaseLog and clears the stash + toast', () => {
+    const staged = {
+      ...initialState(),
+      phase: 'Cut' as const,
+      phaseStart: '2026-08-03',
+      phaseLog: [{ start: '2026-08-03', name: 'Cut' as const }],
+      pendingPhase: 'Bulk' as const,
+    }
+    const committed = reducer(staged, { type: 'COMMIT_PHASE_CHANGE' })
+    const withToast = reducer(committed, { type: 'SHOW_TOAST', message: 'Bulk started' })
+    const undone = reducer(withToast, { type: 'UNDO_PHASE_CHANGE' })
+    expect(undone.phase).toBe('Cut')
+    expect(undone.phaseStart).toBe('2026-08-03')
+    expect(undone.phaseLog).toEqual(staged.phaseLog)
+    expect(undone.phaseUndo).toBeNull()
+    expect(undone.toast).toBeNull()
+  })
+
+  it('CLEAR_TOAST also drops a pending undo stash — undo only lives as long as its toast', () => {
+    const state = { ...initialState(), toast: 'Bulk started', phaseUndo: { phase: 'Cut' as const, phaseStart: '2026-08-03', phaseLog: [] } }
+    const next = reducer(state, { type: 'CLEAR_TOAST' })
+    expect(next.toast).toBeNull()
+    expect(next.phaseUndo).toBeNull()
+  })
+})
+
 describe('reducer — SET_PHASE_WEEK', () => {
   it('sets phaseStart so the week counter reads the requested week as of today', () => {
     const state = initialState()

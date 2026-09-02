@@ -14,7 +14,6 @@ function settingsFrom(state: AppState): SettingsPayload {
     unit: state.unit,
     trendWindow: state.trendWindow,
     trendWindowMode: state.trendWindowMode,
-    trendHorizon: state.trendHorizon,
     solveMode: state.solveMode,
     targetLbs: state.targetLbs,
     targetWeeks: state.targetWeeks,
@@ -26,7 +25,6 @@ const SETTINGS_ACTION_TYPES = new Set<Action['type']>([
   'SET_UNIT',
   'SET_TREND_WINDOW',
   'SET_TREND_WINDOW_MODE',
-  'SET_TREND_HORIZON',
   'SET_SOLVE_MODE',
   'SET_TARGET_LBS',
   'SAVE_TARGET',
@@ -53,7 +51,9 @@ function queueSideEffects(action: Action, next: AppState) {
       }
       break
     case 'SET_PHASE':
-    case 'RESTART_PHASE': {
+    case 'RESTART_PHASE':
+    case 'COMMIT_PHASE_CHANGE':
+    case 'UNDO_PHASE_CHANGE': {
       const last = next.phaseLog[next.phaseLog.length - 1]
       if (last) enqueue({ op: 'upsert_phase', payload: { start: last.start, name: last.name } })
       enqueue({ op: 'upsert_settings', payload: settingsFrom(next) })

@@ -5,7 +5,6 @@ export type Screen = 'today' | 'trends' | 'history' | 'setup'
 export type Unit = 'lb' | 'kg'
 export type SolveMode = 'weight' | 'date'
 export type TrendWindow = 8 | 13 | 26 | 99
-export type TrendHorizon = 4 | 6 | 12
 export type { TrendWindowMode }
 
 /** State persisted to local cache and, once synced, to Supabase. */
@@ -24,7 +23,6 @@ export interface PersistedState {
   /** 'weeks' uses `trendWindow` as-is; 'phaseStart'/'lastDeload' scope the chart's window to a
    * phase-log anchor instead (see `phaseAnchoredShowN`) — `trendWindow` is ignored in those. */
   trendWindowMode: TrendWindowMode
-  trendHorizon: TrendHorizon
   solveMode: SolveMode
   targetLbs: number
   targetWeeks: number
@@ -44,6 +42,12 @@ export interface UiState {
   syncFailed: boolean
   /** True once the initial local/remote hydration has completed. */
   hydrated: boolean
+  /** A phase tapped on Setup's grid but not yet committed — STAGE_PHASE sets this,
+   * COMMIT_PHASE_CHANGE applies it. Lets a mistap be caught before it starts a real phase. */
+  pendingPhase: PhaseName | null
+  /** The phase/phaseStart/phaseLog a COMMIT_PHASE_CHANGE just replaced, kept just long enough
+   * for UNDO_PHASE_CHANGE to restore it (cleared together with the toast that offers it). */
+  phaseUndo: { phase: PhaseName; phaseStart: string; phaseLog: PhaseLogEntry[] } | null
 }
 
 export type AppState = PersistedState & UiState
@@ -58,7 +62,6 @@ export const PERSISTED_KEYS: (keyof PersistedState)[] = [
   'unit',
   'trendWindow',
   'trendWindowMode',
-  'trendHorizon',
   'solveMode',
   'targetLbs',
   'targetWeeks',
@@ -76,7 +79,6 @@ export function initialState(): AppState {
     unit: 'lb',
     trendWindow: 26,
     trendWindowMode: 'weeks',
-    trendHorizon: 6,
     solveMode: 'weight',
     targetLbs: 175,
     targetWeeks: 6,
@@ -88,5 +90,7 @@ export function initialState(): AppState {
     toast: null,
     syncFailed: false,
     hydrated: false,
+    pendingPhase: null,
+    phaseUndo: null,
   }
 }
