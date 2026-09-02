@@ -5,6 +5,7 @@ import { useApp } from '../store/AppContext'
 import { Chip } from '../components/ui/Chip'
 import { RateBar } from './today/RateBar'
 import { DayStrip } from './today/DayStrip'
+import { EnergyCard } from './today/EnergyCard'
 import { StatCards } from './today/StatCards'
 
 const SIGN_COLOR = { lime: 'var(--sign-good)', red: 'var(--sign-bad)', grey: 'var(--text-muted)' } as const
@@ -26,7 +27,7 @@ const CHIP_COLORS = {
 
 export function Today() {
   const { state, dispatch } = useApp()
-  const { entries, phase, phaseStart, phaseLog, weeklyTarget, unit } = state
+  const { entries, nutrition, phase, phaseStart, phaseLog, weeklyTarget, unit } = state
   const today = todayIso()
 
   if (entries.length === 0) {
@@ -136,10 +137,13 @@ export function Today() {
         />
       </div>
 
-      {/* ENERGY CARD SLOT — e9 drops the MaintenanceCard-equivalent here. Vertical order this
-          screen lands in: chip+date -> streak -> hero+rate bar -> day strip -> stat cards ->
-          [this slot] -> "where this lands" link below. Reach itself (target input, solver
-          output) and the chart both live on Trends now — this link is the only bridge. */}
+      <EnergyCard
+        entries={entries}
+        nutrition={nutrition}
+        phaseLog={phaseLog}
+        weeklyTargetLbs={weeklyTarget}
+        today={today}
+      />
 
       <button
         type="button"

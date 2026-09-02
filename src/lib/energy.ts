@@ -48,6 +48,10 @@ export interface MaintenanceEstimate {
   calorieDays: number
   /** Actual span the fit covered, first logged day to today, in days. */
   windowDays: number
+  /** ISO date the window actually starts on — `ESTIMATE_WINDOW_DAYS` back, or the current
+   * Cut/Bulk phase start if that's more recent (the clamp). Lets the card explain a short
+   * window right after a phase change. */
+  windowStart: string
   /** R² of the weight fit over the window — a trust signal for the number next to it. */
   r2: number
   /** Plain-English read, e.g. "Reliable · tight fit" or why there's no number yet. */
@@ -95,6 +99,7 @@ export function estimateMaintenance(
     weightChangeLbs: null,
     calorieDays,
     windowDays: spanDays,
+    windowStart,
     r2: 0,
   }
 
@@ -143,6 +148,7 @@ export function estimateMaintenance(
     weightChangeLbs,
     calorieDays,
     windowDays: spanDays,
+    windowStart,
     r2: fit.r2,
     note: `${coverageWord} · ${fitQualityLabel(fit.r2).toLowerCase()}`,
   }
