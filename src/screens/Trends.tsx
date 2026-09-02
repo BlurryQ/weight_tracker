@@ -22,7 +22,6 @@ import type { TrendWindow } from '../store/types'
 import { WeightChart } from '../components/chart/WeightChart'
 import { ReachCard } from '../components/entry/ReachCard'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
-import { WeeklyChangeBars } from './trends/WeeklyChangeBars'
 
 const SIGN_COLOR: Record<SignColor, string> = {
   lime: 'var(--sign-good)', // +/- deltas stay green/red, independent of the accent hue
@@ -255,10 +254,6 @@ export function Trends() {
           color={SIGN_COLOR[signColor(toLbs(geometry.slope, unit), dir)]}
         />
         <StatCard label="R²" value={geometry.r2.toFixed(2)} note={fitQualityLabel(geometry.r2)} />
-      </div>
-
-      <div style={{ marginTop: 12 }}>
-        <WeeklyChangeBars weekly={weekly} dir={dir} />
       </div>
     </div>
   )

@@ -12,6 +12,7 @@ import {
   groupWeeksBySpan,
   hasFoldedWeek,
   leastSquaresFit,
+  lastCompletedWeek,
   longestStreak,
   paceLabel,
   phaseAnchoredShowN,
@@ -351,6 +352,36 @@ describe('longestStreak', () => {
 
   it('is 0 for no entries', () => {
     expect(longestStreak([])).toBe(0)
+  })
+})
+
+describe('lastCompletedWeek', () => {
+  const weekly = [
+    { monday: '2026-08-03', lbs: 191, n: 7 },
+    { monday: '2026-08-10', lbs: 190, n: 7 },
+    { monday: '2026-08-17', lbs: 189, n: 7 },
+    { monday: '2026-08-24', lbs: 188.5, n: 3 }, // in progress — this is "today"'s own week
+  ]
+
+  it('excludes the current in-progress week even if it already has entries', () => {
+    const result = lastCompletedWeek(weekly, '2026-08-26') // Wednesday of the 24th's week
+    expect(result).toEqual({ monday: '2026-08-17', lbs: 189, deltaLbs: -1 })
+  })
+
+  it('uses the last item directly when the current week has no entries yet', () => {
+    const noCurrentWeekYet = weekly.slice(0, 3)
+    const result = lastCompletedWeek(noCurrentWeekYet, '2026-08-26')
+    expect(result).toEqual({ monday: '2026-08-17', lbs: 189, deltaLbs: -1 })
+  })
+
+  it('has no delta when there is only one completed week to show', () => {
+    const result = lastCompletedWeek(weekly.slice(0, 1), '2026-08-26')
+    expect(result).toEqual({ monday: '2026-08-03', lbs: 191, deltaLbs: null })
+  })
+
+  it('is null when there is no completed week at all', () => {
+    expect(lastCompletedWeek([], '2026-08-26')).toBeNull()
+    expect(lastCompletedWeek([{ monday: '2026-08-24', lbs: 188.5, n: 3 }], '2026-08-26')).toBeNull()
   })
 })
 

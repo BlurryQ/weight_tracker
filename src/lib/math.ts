@@ -336,6 +336,27 @@ export function longestStreak(entries: Entry[]): number {
   return best
 }
 
+export interface LastWeekStat {
+  monday: string
+  lbs: number
+  /** vs the week before this one, or null if there's no earlier completed week to compare to. */
+  deltaLbs: number | null
+}
+
+/** The most recent *complete* ISO week's average — the current week in progress (if it already
+ * has entries) is excluded, so this never presents a partial week as if it were final. Today's
+ * Last Week stat uses this; the delta follows the same "compare to whatever completed week came
+ * before it" convention History already uses (a gap week with no entries is silently skipped,
+ * not treated as a zero). */
+export function lastCompletedWeek(weekly: WeeklyAverage[], today: string): LastWeekStat | null {
+  const currentMonday = mondayOf(today)
+  const completed = weekly.filter((w) => w.monday < currentMonday)
+  if (!completed.length) return null
+  const last = completed[completed.length - 1]
+  const prev = completed[completed.length - 2]
+  return { monday: last.monday, lbs: last.lbs, deltaLbs: prev ? last.lbs - prev.lbs : null }
+}
+
 // --- History phase grouping -----------------------------------------
 
 export interface WeekGroup {

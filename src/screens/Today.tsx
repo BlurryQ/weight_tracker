@@ -1,12 +1,13 @@
 import { diffDays, mondayOf, shortDate, today as todayIso } from '../lib/dates'
 import { formatWeight, sgn, toDisplay, unitLabel } from '../lib/format'
-import { avg, currentDir, currentStreak, fitSlope, signColor, weeklyAverages } from '../lib/math'
+import { avg, currentDir, currentStreak, fitSlope, lastCompletedWeek, signColor, weeklyAverages } from '../lib/math'
 import { useApp } from '../store/AppContext'
 import { Chip } from '../components/ui/Chip'
 import { RateBar } from './today/RateBar'
 import { DayStrip } from './today/DayStrip'
 import { EnergyCard } from './today/EnergyCard'
 import { StatCards } from './today/StatCards'
+import { WeeklyChangeBars } from './today/WeeklyChangeBars'
 
 const SIGN_COLOR = { lime: 'var(--sign-good)', red: 'var(--sign-bad)', grey: 'var(--text-muted)' } as const
 
@@ -59,12 +60,12 @@ export function Today() {
   const a7 = avg(entries, 7, today)
   const a7prev = avg(entries, 7, today, 7)
   const a14 = avg(entries, 14, today)
-  const a30 = avg(entries, 30, today)
   const wowLbs = a7 != null && a7prev != null ? a7 - a7prev : 0
 
   const weekly = weeklyAverages(entries)
   const fit4 = fitSlope(weekly, 4)
   const dir = currentDir(phase, phaseLog)
+  const lastWeek = lastCompletedWeek(weekly, today)
 
   const phaseWeek = Math.floor(diffDays(mondayOf(phaseStart), today) / 7) + 1
   const chipColors = CHIP_COLORS[dir]
@@ -130,12 +131,16 @@ export function Today() {
       <div style={{ marginTop: 16 }}>
         <StatCards
           a14={formatWeight(a14, unit)}
-          a30={formatWeight(a30, unit)}
+          lastWeek={lastWeek ? formatWeight(lastWeek.lbs, unit) : '—'}
+          lastWeekDelta={lastWeek?.deltaLbs != null ? sgn(toDisplay(lastWeek.deltaLbs, unit)) : undefined}
+          lastWeekDeltaColor={lastWeek?.deltaLbs != null ? signColor(lastWeek.deltaLbs, dir) : undefined}
           rateLbs={fit4.slope}
           rateColor={signColor(fit4.slope, dir)}
           unit={unit}
         />
       </div>
+
+      <WeeklyChangeBars weekly={weekly} dir={dir} />
 
       <EnergyCard
         entries={entries}

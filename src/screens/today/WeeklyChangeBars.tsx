@@ -1,4 +1,3 @@
-import { shortDate } from '../../lib/dates'
 import { signColor, type Direction, type SignColor, type WeeklyAverage } from '../../lib/math'
 
 // Cyan when the week moved the right way for the phase, magenta against — distinct from the
@@ -11,21 +10,23 @@ const SIGN_COLOR: Record<SignColor, string> = {
 }
 
 const BAR_MAX_HEIGHT = 24 // px, each direction off the zero line
+const WEEKS_SHOWN = 5 // trimmed from Trends' 8 — a recent-shape cue, not a second chart
 
-/** Signed week-over-week change, one bar per week, last 8 weeks — a shape-of-the-noise view
- * alongside the trend line's shape-of-the-average. Bar height is |delta|; direction (above/below
- * the zero line) is the sign; colour follows the same phase-aware good/bad rule as everywhere
- * else (signColor), not raw sign. Bars show relative shape only (no unit conversion needed —
- * they're not labeled with values, just direction and relative magnitude). */
+/** Signed week-over-week change, one bar per week, last 5 weeks — moved here (not copied) from
+ * Trends so checking "how's this phase actually going" doesn't need a tab switch. Trimmed down
+ * from Trends' original: fewer weeks and no per-bar date labels, so it reads as a compact shape
+ * cue alongside the other stats rather than a second chart. Bar height is |delta|; direction
+ * (above/below the zero line) is the sign; colour follows the same phase-aware good/bad rule as
+ * everywhere else (signColor), not raw sign. */
 export function WeeklyChangeBars({ weekly, dir }: { weekly: WeeklyAverage[]; dir: Direction }) {
-  const recent = weekly.slice(-9) // 9 points -> 8 deltas
+  const recent = weekly.slice(-(WEEKS_SHOWN + 1))
   const deltas = recent.slice(1).map((w, i) => ({ monday: w.monday, deltaLbs: w.lbs - recent[i].lbs }))
   if (!deltas.length) return null
 
   const maxAbs = Math.max(0.1, ...deltas.map((d) => Math.abs(d.deltaLbs)))
 
   return (
-    <div style={{ marginTop: 12, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
+    <div style={{ marginTop: 16, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span
           style={{
@@ -63,14 +64,6 @@ export function WeeklyChangeBars({ weekly, dir }: { weekly: WeeklyAverage[]; dir
             </div>
           )
         })}
-      </div>
-
-      <div style={{ marginTop: 6, display: 'flex' }}>
-        {deltas.map((d) => (
-          <div key={d.monday} style={{ flex: 1, textAlign: 'center', font: '500 8px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
-            {shortDate(d.monday)}
-          </div>
-        ))}
       </div>
     </div>
   )
