@@ -1,6 +1,5 @@
 import { useId } from 'react'
 import type { ChartGeometry } from '../../lib/chartGeometry'
-import { sgn } from '../../lib/format'
 
 interface WeightChartProps {
   geometry: ChartGeometry
@@ -62,6 +61,23 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
           {line.value}
         </div>
       ))}
+      {/* The goal-pace line is the one thing that needs naming — the trend line grows out of
+          the data. Right-aligned to the chart edge, just below its endpoint. */}
+      {g.targetProj && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            width: gutter + g.projX - 2,
+            top: g.targetProjY + 3,
+            textAlign: 'right',
+            font: '500 8.5px "IBM Plex Mono", monospace',
+            color: 'var(--text-muted)',
+          }}
+        >
+          target
+        </div>
+      )}
       <svg width={W} height={H} style={{ overflow: 'visible', display: 'block' }}>
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
@@ -102,17 +118,12 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
 
         <path d={g.area} fill={`url(#${gradId})`} stroke="none" />
 
-        {/* HIERARCHY on ink-black: solid data line (brightest) > cyan projection dash (lighter,
-            thinner) > magenta goal-pace dash (thinnest, dimmest). Colour alone can't carry it
-            when both forward lines are saturated, so weight + dash + opacity do. */}
-
         {/* Trend line, one object: a faint solid connector back into the data … */}
-        <path d={g.trendPast} fill="none" stroke="var(--accent)" strokeWidth={1.4} strokeLinecap="round" opacity={0.3} />
+        <path d={g.trendPast} fill="none" stroke="var(--accent)" strokeWidth={1.4} strokeLinecap="round" opacity={0.4} />
 
         <path d={g.line} fill="none" stroke="var(--accent)" strokeWidth={2.1} strokeLinejoin="round" />
 
-        {/* … continued forward as the dashed projection — same colour, lighter, so it reads as
-            "the trend, extrapolated" rather than a second measured line. */}
+        {/* … continued forward as the dashed projection. */}
         <path
           d={g.proj}
           fill="none"
@@ -123,17 +134,30 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
           opacity={0.72}
         />
 
-        {/* Goal-pace reference: forward only, magenta, thinnest + dimmest of the three. */}
+        {/* Goal-pace reference: forward only, quiet muted grey, thinnest of the lines, with a
+            terminal tick + the "target" edge label above. The gap to the projection is the
+            goal-vs-projected read — kept understated on purpose. */}
         {g.targetProj && (
-          <path
-            d={g.targetProj}
-            fill="none"
-            stroke="var(--goal-pace)"
-            strokeWidth={1.25}
-            strokeDasharray="4 4"
-            strokeLinecap="round"
-            opacity={0.55}
-          />
+          <>
+            <path
+              d={g.targetProj}
+              fill="none"
+              stroke="var(--text-muted)"
+              strokeWidth={1.25}
+              strokeDasharray="1 5"
+              strokeLinecap="round"
+              opacity={0.5}
+            />
+            <line
+              x1={g.targetProjX}
+              x2={g.targetProjX}
+              y1={g.targetProjY - 4}
+              y2={g.targetProjY + 4}
+              stroke="var(--text-muted)"
+              strokeWidth={1.25}
+              opacity={0.6}
+            />
+          </>
         )}
 
         {isTrends &&
@@ -141,77 +165,16 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
             <circle key={i} cx={d.x} cy={d.y} r={2.4} fill="var(--bg)" stroke="var(--accent)" strokeWidth={1.2} />
           ))}
 
-        {/* Now: solid pivot. Both forward lines land in a hollow ring with their value beside it. */}
         <circle cx={g.lastX} cy={g.lastY} r={4.5} fill="var(--accent)" />
-
-        <circle cx={g.projX} cy={g.projY} r={3.5} fill="var(--bg)" stroke="var(--accent)" strokeWidth={1.6} />
-        {/* Values sit left of their endpoint (anchor=end) so they stay inside the plot even
-            though the circles are at the chart's right edge; cyan above its line, magenta
-            below its steeper one, so the two never stack. */}
-        <text
-          x={g.projX - 6}
-          y={g.projY - 6}
-          textAnchor="end"
-          fontFamily="'IBM Plex Mono', monospace"
-          fontSize={9}
-          fontWeight={600}
-          fill="var(--accent)"
-        >
-          {g.projVal.toFixed(1)}
-        </text>
-
-        {g.targetProj && (
-          <>
-            <circle
-              cx={g.targetProjX}
-              cy={g.targetProjY}
-              r={3.5}
-              fill="var(--bg)"
-              stroke="var(--goal-pace)"
-              strokeWidth={1.6}
-            />
-            <text
-              x={g.targetProjX - 6}
-              y={g.targetProjY + 12}
-              textAnchor="end"
-              fontFamily="'IBM Plex Mono', monospace"
-              fontSize={9}
-              fontWeight={500}
-              fill="var(--goal-pace)"
-            >
-              {g.targetProjVal.toFixed(1)}
-            </text>
-          </>
-        )}
+        <circle
+          cx={g.projX}
+          cy={g.projY}
+          r={3.5}
+          fill={isTrends ? 'var(--accent)' : 'var(--bg)'}
+          stroke="var(--accent)"
+          strokeWidth={1.6}
+        />
       </svg>
-
-      {/* Legend — kept in the chart component so it can't drift from the strokes above. */}
-      <div
-        style={{
-          marginTop: 16,
-          marginLeft: gutter,
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: 12,
-          font: '500 8.5px "IBM Plex Mono", monospace',
-          color: 'var(--text-dim)',
-        }}
-      >
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-          <span style={{ width: 16, borderTop: '2px solid var(--accent)' }} />
-          if this continues
-        </span>
-        {g.targetProj && (
-          <>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ width: 16, borderTop: '1.5px dashed var(--goal-pace)' }} />
-              goal pace
-            </span>
-            <span style={{ color: 'var(--amber)' }}>{sgn(g.projVal - g.targetProjVal)} vs goal pace</span>
-          </>
-        )}
-      </div>
     </div>
   )
 }
