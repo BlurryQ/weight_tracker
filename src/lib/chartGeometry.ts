@@ -47,9 +47,14 @@ export interface ChartGeometry {
    * — "if this continues" (`proj`) vs. "if you'd been exactly on target" (`targetProj`), so the
    * gap between them is visible. Empty string when no target rate was given. */
   targetProj: string
-  /** Y of the target line's forward end, for drawing its terminal tick and label. 0 when there
-   * is no target line. */
+  /** X/Y of the target line's forward end, for drawing its terminal tick and label — same X as
+   * `projX` (both lines share a forward endpoint column), given explicitly so consumers don't
+   * have to know that. 0 when there is no target line. */
+  targetProjX: number
   targetProjY: number
+  /** The target line's forward-end value, in display units — the target-rate counterpart to
+   * `projVal`. 0 when there is no target line. */
+  targetProjVal: number
   dots: ChartDot[]
   lastX: number
   lastY: number
@@ -77,7 +82,9 @@ const EMPTY_GEOMETRY: ChartGeometry = {
   bands: [],
   markers: [],
   targetProj: '',
+  targetProjX: 0,
   targetProjY: 0,
+  targetProjVal: 0,
   dots: [],
   lastX: 0,
   lastY: 0,
@@ -154,6 +161,7 @@ export function buildChartGeometry(
     targetProjected != null
       ? 'M' + X(n - 1).toFixed(1) + ' ' + Y(last).toFixed(1) + ' L' + X(slots).toFixed(1) + ' ' + Y(targetProjected).toFixed(1)
       : ''
+  const targetProjX = targetProjected != null ? X(slots) : 0
   const targetProjY = targetProjected != null ? Y(targetProjected) : 0
 
   const grid: GridLine[] = []
@@ -203,7 +211,9 @@ export function buildChartGeometry(
     bands,
     markers,
     targetProj,
+    targetProjX,
     targetProjY,
+    targetProjVal: targetProjected ?? 0,
     dots: pts.map((p, i) => ({ x: X(i), y: Y(p.y) })),
     lastX: X(n - 1),
     lastY: Y(pts[n - 1].y),

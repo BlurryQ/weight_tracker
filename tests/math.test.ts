@@ -9,8 +9,10 @@ import {
   fitQualityLabel,
   fitSlope,
   foldedWeeks,
+  groupWeeksBySpan,
   leastSquaresFit,
   longestStreak,
+  phaseAnchoredShowN,
   phaseAt,
   phaseSpans,
   projectionWeeks,
@@ -21,6 +23,7 @@ import {
   type Entry,
   type PhaseLogEntry,
 } from '../src/lib/math'
+import { addDays } from '../src/lib/dates'
 import { WEIGHT_DATA_FIXTURE } from './fixtures/weight-data'
 
 // The fixture's real-world "today" — frozen so results are deterministic and directly
@@ -389,6 +392,91 @@ describe('fitQualityLabel', () => {
     expect(fitQualityLabel(0.75)).toBe('Decent fit')
     expect(fitQualityLabel(0.5)).toBe('Noisy')
     expect(fitQualityLabel(0.2)).toBe('Very noisy')
+  })
+})
+
+describe('groupWeeksBySpan', () => {
+  it('folds a Deload week into the enclosing Cut span, not its own group', () => {
+    const weekly = [
+      { monday: '2026-04-20', lbs: 196, n: 7 },
+      { monday: '2026-04-27', lbs: 195, n: 7 },
+      { monday: '2026-07-27', lbs: 187, n: 7 }, // Deload week, still inside the Cut span
+      { monday: '2026-08-03', lbs: 186, n: 7 },
+    ]
+    const log: PhaseLogEntry[] = [
+      { start: '2026-04-20', name: 'Cut' },
+      { start: '2026-07-27', name: 'Deload' },
+    ]
+    const groups = groupWeeksBySpan(weekly, log)
+    expect(groups).toHaveLength(1)
+    expect(groups[0].span).toEqual({ dir: 'Cut', start: '2026-04-20' })
+    expect(groups[0].weeks).toHaveLength(4)
+  })
+
+  it('splits into separate groups on a real Cut/Bulk change', () => {
+    const weekly = [
+      { monday: '2026-01-05', lbs: 200, n: 7 },
+      { monday: '2026-04-20', lbs: 196, n: 7 },
+      { monday: '2026-04-27', lbs: 195, n: 7 },
+    ]
+    const log: PhaseLogEntry[] = [
+      { start: '2026-01-05', name: 'Bulk' },
+      { start: '2026-04-20', name: 'Cut' },
+    ]
+    const groups = groupWeeksBySpan(weekly, log)
+    expect(groups.map((g) => g.span?.dir)).toEqual(['Bulk', 'Cut'])
+    expect(groups[0].weeks).toHaveLength(1)
+    expect(groups[1].weeks).toHaveLength(2)
+  })
+
+  it('gives weeks before any phase history a null, unlabeled leading group', () => {
+    const weekly = [
+      { monday: '2025-10-06', lbs: 188, n: 7 },
+      { monday: '2026-01-05', lbs: 200, n: 7 },
+    ]
+    const log: PhaseLogEntry[] = [{ start: '2026-01-05', name: 'Bulk' }]
+    const groups = groupWeeksBySpan(weekly, log)
+    expect(groups[0].span).toBeNull()
+    expect(groups[0].weeks).toHaveLength(1)
+    expect(groups[1].span?.dir).toBe('Bulk')
+  })
+})
+
+describe('phaseAnchoredShowN', () => {
+  const weekly = Array.from({ length: 20 }, (_, i) => ({
+    monday: addDays('2026-04-20', i * 7),
+    lbs: 200 - i,
+    n: 7,
+  }))
+
+  it('phaseStart mode counts weeks since the current span started', () => {
+    const log: PhaseLogEntry[] = [{ start: '2026-04-20', name: 'Cut' }]
+    // 20 weeks of data, all inside the one Cut span starting at week 0 -> all 20 weeks.
+    expect(phaseAnchoredShowN(weekly, log, 'phaseStart')).toBe(20)
+  })
+
+  it('lastDeload mode counts weeks since the most recent Deload/Maintain week', () => {
+    const log: PhaseLogEntry[] = [
+      { start: '2026-04-20', name: 'Cut' },
+      { start: addDays('2026-04-20', 10 * 7), name: 'Deload' }, // week index 10
+    ]
+    // last weekly monday is week index 19 -> 19-10+1 = 10 weeks since the deload.
+    expect(phaseAnchoredShowN(weekly, log, 'lastDeload')).toBe(10)
+  })
+
+  it('lastDeload falls back to the phase-start anchor when nothing has been logged yet', () => {
+    const log: PhaseLogEntry[] = [{ start: '2026-04-20', name: 'Cut' }]
+    expect(phaseAnchoredShowN(weekly, log, 'lastDeload')).toBe(phaseAnchoredShowN(weekly, log, 'phaseStart'))
+  })
+
+  it('floors at 3 weeks for a just-started phase', () => {
+    const log: PhaseLogEntry[] = [{ start: weekly[weekly.length - 1].monday, name: 'Cut' }]
+    expect(phaseAnchoredShowN(weekly, log, 'phaseStart')).toBe(3)
+  })
+
+  it('caps at however much history actually exists', () => {
+    const log: PhaseLogEntry[] = [{ start: '2000-01-03', name: 'Cut' }] // long before any data
+    expect(phaseAnchoredShowN(weekly, log, 'phaseStart')).toBe(weekly.length)
   })
 })
 

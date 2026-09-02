@@ -2,7 +2,7 @@ import { addDays, mondayOf, today as todayIso } from '../lib/dates'
 import { applyKeypadKey, toDisplay } from '../lib/format'
 import type { NutritionEntry } from '../lib/energy'
 import { dedupePhaseLog } from '../lib/math'
-import type { AppState, PersistedState, Screen, SolveMode, TrendHorizon, TrendWindow, Unit } from './types'
+import type { AppState, PersistedState, Screen, SolveMode, TrendHorizon, TrendWindow, TrendWindowMode, Unit } from './types'
 import type { PhaseName } from '../lib/math'
 
 export type Action =
@@ -16,9 +16,13 @@ export type Action =
   | { type: 'SET_PHASE'; phase: PhaseName }
   | { type: 'RESTART_PHASE' }
   | { type: 'SET_PHASE_WEEK'; week: number }
+  /** Deload/Maintain as a one-week event, not a phase change — appends to phaseLog only,
+   * leaves phase/phaseStart untouched. See SET_PHASE for the "this is now my real phase" path. */
+  | { type: 'LOG_FOLDED_WEEK'; name: 'Maintain' | 'Deload' }
   | { type: 'SET_WEEKLY_TARGET'; value: number }
   | { type: 'SET_UNIT'; unit: Unit }
   | { type: 'SET_TREND_WINDOW'; window: TrendWindow }
+  | { type: 'SET_TREND_WINDOW_MODE'; mode: TrendWindowMode }
   | { type: 'SET_TREND_HORIZON'; horizon: TrendHorizon }
   | { type: 'TOGGLE_WEEK'; monday: string }
   | { type: 'SET_SOLVE_MODE'; mode: SolveMode }
@@ -126,6 +130,9 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, phaseStart }
     }
 
+    case 'LOG_FOLDED_WEEK':
+      return { ...state, phaseLog: withPhaseLogAppend(state.phaseLog, todayIso(), action.name) }
+
     case 'SET_WEEKLY_TARGET':
       return { ...state, weeklyTarget: action.value }
 
@@ -134,6 +141,9 @@ export function reducer(state: AppState, action: Action): AppState {
 
     case 'SET_TREND_WINDOW':
       return { ...state, trendWindow: action.window }
+
+    case 'SET_TREND_WINDOW_MODE':
+      return { ...state, trendWindowMode: action.mode }
 
     case 'SET_TREND_HORIZON':
       return { ...state, trendHorizon: action.horizon }

@@ -1,24 +1,10 @@
-import { buildChartGeometry } from '../lib/chartGeometry'
 import { diffDays, mondayOf, shortDate, today as todayIso } from '../lib/dates'
 import { formatWeight, sgn, toDisplay, unitLabel } from '../lib/format'
-import {
-  avg,
-  currentDir,
-  fitSlope,
-  foldedWeeks,
-  paceStatus,
-  phaseSpans,
-  projectionWeeks,
-  signColor,
-  solveByDate,
-  solveByWeight,
-  weeklyAverages,
-} from '../lib/math'
+import { avg, currentDir, currentStreak, fitSlope, paceStatus, signColor, weeklyAverages } from '../lib/math'
 import { useApp } from '../store/AppContext'
 import { Chip } from '../components/ui/Chip'
-import { WeightChart } from '../components/chart/WeightChart'
-import { ReachCard } from '../components/entry/ReachCard'
-import { PaceRing } from './today/PaceRing'
+import { RateBar } from './today/RateBar'
+import { DayStrip } from './today/DayStrip'
 import { StatCards } from './today/StatCards'
 
 const SIGN_COLOR = { lime: 'var(--sign-good)', red: 'var(--sign-bad)', grey: 'var(--text-muted)' } as const
@@ -40,7 +26,7 @@ const CHIP_COLORS = {
 
 export function Today() {
   const { state, dispatch } = useApp()
-  const { entries, phase, phaseStart, phaseLog, weeklyTarget, unit, solveMode, targetLbs, targetWeeks } = state
+  const { entries, phase, phaseStart, phaseLog, weeklyTarget, unit } = state
   const today = todayIso()
 
   if (entries.length === 0) {
@@ -78,26 +64,11 @@ export function Today() {
   const weekly = weeklyAverages(entries)
   const fit4 = fitSlope(weekly, 4)
   const dir = currentDir(phase, phaseLog)
-  const lastWeekly = weekly[weekly.length - 1]
-  const current = lastWeekly ? lastWeekly.lbs : (a7 ?? 0)
-  const lastMonday = lastWeekly ? lastWeekly.monday : mondayOf(today)
-  const reachCtx = { current, slopeLbs: fit4.slope, lastMonday }
-  const weightResult = solveByWeight(reachCtx, targetLbs)
-  const dateResult = solveByDate(reachCtx, targetWeeks)
-  const solveWeeks = projectionWeeks(solveMode, targetWeeks, weightResult)
-
-  const spans = phaseSpans(phaseLog)
-  const geometry = buildChartGeometry(
-    weekly,
-    spans,
-    { W: 320, H: 128, gutter: 28, showN: 26, fitK: 4, fwd: solveWeeks, gridN: 4 },
-    (lbs) => toDisplay(lbs, unit),
-    foldedWeeks(phaseLog),
-  )
 
   const pace = paceStatus(fit4.slope, weeklyTarget)
   const phaseWeek = Math.floor(diffDays(mondayOf(phaseStart), today) / 7) + 1
   const chipColors = CHIP_COLORS[dir]
+  const streak = currentStreak(entries, today)
 
   return (
     <div style={{ padding: '0 20px' }}>
@@ -113,7 +84,11 @@ export function Today() {
         <span style={{ font: '500 11px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>{shortDate(today)}</span>
       </div>
 
-      <div style={{ marginTop: 20, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+      <div style={{ marginTop: 8, font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+        <span style={{ color: 'var(--accent-text)', fontWeight: 600 }}>{streak}</span> day{streak === 1 ? '' : 's'} streak
+      </div>
+
+      <div style={{ marginTop: 16, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
           <div
             style={{
@@ -144,10 +119,14 @@ export function Today() {
             {sgn(toDisplay(wowLbs, unit))} on the week
           </div>
         </div>
-        <PaceRing status={pace} />
+        <RateBar status={pace} />
       </div>
 
-      <div style={{ marginTop: 20 }}>
+      <div style={{ marginTop: 16 }}>
+        <DayStrip entries={entries} today={today} unit={unit} />
+      </div>
+
+      <div style={{ marginTop: 16 }}>
         <StatCards
           a14={formatWeight(a14, unit)}
           a30={formatWeight(a30, unit)}
@@ -157,44 +136,26 @@ export function Today() {
         />
       </div>
 
-      <div style={{ marginTop: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span
-            style={{
-              font: '600 9.5px/1 "Barlow Condensed", sans-serif',
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
-              color: 'var(--text-dim)',
-            }}
-          >
-            Weekly average
-          </span>
-          <button
-            type="button"
-            onClick={() => dispatch({ type: 'SET_SCREEN', screen: 'trends' })}
-            style={{ font: '500 10.5px "IBM Plex Mono", monospace', color: 'var(--accent)', cursor: 'pointer' }}
-          >
-            all trends →
-          </button>
-        </div>
-        <div style={{ marginTop: 14 }}>
-          <WeightChart geometry={geometry} W={320} H={128} gutter={28} variant="today" />
-        </div>
-      </div>
+      {/* ENERGY CARD SLOT — e9 drops the MaintenanceCard-equivalent here. Vertical order this
+          screen lands in: chip+date -> streak -> hero+rate bar -> day strip -> stat cards ->
+          [this slot] -> "where this lands" link below. Reach itself (target input, solver
+          output) and the chart both live on Trends now — this link is the only bridge. */}
 
-      <ReachCard
-        unit={unit}
-        solveMode={solveMode}
-        onSolveModeChange={(mode) => dispatch({ type: 'SET_SOLVE_MODE', mode })}
-        targetLbs={targetLbs}
-        targetWeeks={targetWeeks}
-        onEditTarget={() => dispatch({ type: 'OPEN_SHEET', sheet: 'target' })}
-        onWeeksChange={(weeks) => dispatch({ type: 'SET_TARGET_WEEKS', value: weeks })}
-        current={current}
-        slopeLbs={fit4.slope}
-        weightResult={weightResult}
-        dateResult={dateResult}
-      />
+      <button
+        type="button"
+        onClick={() => dispatch({ type: 'SET_SCREEN', screen: 'trends' })}
+        style={{
+          marginTop: 12,
+          marginBottom: 8,
+          width: '100%',
+          textAlign: 'center',
+          cursor: 'pointer',
+          font: '500 10.5px "IBM Plex Mono", monospace',
+          color: 'var(--accent)',
+        }}
+      >
+        see where this lands, plotted → Trends
+      </button>
     </div>
   )
 }

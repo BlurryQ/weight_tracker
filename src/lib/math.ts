@@ -335,3 +335,54 @@ export function longestStreak(entries: Entry[]): number {
   }
   return best
 }
+
+// --- History phase grouping -----------------------------------------
+
+export interface WeekGroup {
+  /** null for weeks logged before any phase history exists — an unlabeled leading group. */
+  span: PhaseSpan | null
+  weeks: WeeklyAverage[]
+}
+
+/** Buckets ascending weekly averages into their `phaseSpans()` span (Cut/Bulk only — same
+ * folding rule as the chart bands: a Deload/Maintain week stays inside whichever Cut/Bulk
+ * section it falls in, it does not get its own group). Each week keeps its own identity inside
+ * the group — callers must still call `phaseAt()` per week for tags/colors, grouping is purely
+ * presentational. */
+export function groupWeeksBySpan(weekly: WeeklyAverage[], log: PhaseLogEntry[]): WeekGroup[] {
+  const spans = phaseSpans(log)
+  const groups: WeekGroup[] = []
+  for (const week of weekly) {
+    const span = spans.filter((s) => s.start <= week.monday).slice(-1)[0] ?? null
+    const lastGroup = groups[groups.length - 1]
+    const sameGroup = lastGroup && lastGroup.span?.start === span?.start && lastGroup.span?.dir === span?.dir
+    if (sameGroup) {
+      lastGroup.weeks.push(week)
+    } else {
+      groups.push({ span, weeks: [week] })
+    }
+  }
+  return groups
+}
+
+// --- Trends phase-anchored window ------------------------------------
+
+export type TrendWindowMode = 'weeks' | 'phaseStart' | 'lastDeload'
+
+/** How many trailing weekly points to show when the window is anchored to a phase event instead
+ * of a fixed week count. Anchor = the current Cut/Bulk span's start (`phaseStart`) or the most
+ * recent Deload/Maintain week (`lastDeload`, falling back to the phase-start anchor when none
+ * has been logged yet — avoids an undefined window rather than a genuinely different anchor).
+ * Floored at 3 weeks (the chart already needs >=2 points to render at all) and capped at however
+ * much history actually exists. */
+export function phaseAnchoredShowN(weekly: WeeklyAverage[], log: PhaseLogEntry[], mode: 'phaseStart' | 'lastDeload'): number {
+  if (!weekly.length) return 0
+  const spans = phaseSpans(log)
+  const phaseStartAnchor = spans.length ? spans[spans.length - 1].start : weekly[0].monday
+  const folded = foldedWeeks(log)
+  const anchor = mode === 'lastDeload' && folded.length ? folded[folded.length - 1] : phaseStartAnchor
+
+  const lastMonday = weekly[weekly.length - 1].monday
+  const weeksSince = Math.floor(diffDays(mondayOf(anchor), lastMonday) / 7) + 1
+  return Math.max(3, Math.min(weekly.length, weeksSince))
+}

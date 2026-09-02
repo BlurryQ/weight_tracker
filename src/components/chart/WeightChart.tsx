@@ -140,8 +140,8 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
               opacity={0.55}
             />
             <line
-              x1={g.projX}
-              x2={g.projX}
+              x1={g.targetProjX}
+              x2={g.targetProjX}
               y1={g.targetProjY - 4}
               y2={g.targetProjY + 4}
               stroke="var(--goal-pace)"

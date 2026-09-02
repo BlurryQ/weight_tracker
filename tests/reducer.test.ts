@@ -40,6 +40,51 @@ describe('reducer — SET_PHASE_WEEK', () => {
   })
 })
 
+describe('reducer — LOG_FOLDED_WEEK vs SET_PHASE (the phase-model split)', () => {
+  it('LOG_FOLDED_WEEK appends to phaseLog but leaves phase/phaseStart untouched', () => {
+    const state = { ...initialState(), phase: 'Cut' as const, phaseStart: '2026-08-03' }
+    const next = reducer(state, { type: 'LOG_FOLDED_WEEK', name: 'Deload' })
+    expect(next.phase).toBe('Cut') // unchanged — still a Cut, just a Deload week within it
+    expect(next.phaseStart).toBe('2026-08-03') // week counter keeps running
+    expect(next.phaseLog[next.phaseLog.length - 1]).toEqual({ start: today(), name: 'Deload' })
+  })
+
+  it('LOG_FOLDED_WEEK works the same for Maintain', () => {
+    const state = { ...initialState(), phase: 'Bulk' as const, phaseStart: '2026-06-01' }
+    const next = reducer(state, { type: 'LOG_FOLDED_WEEK', name: 'Maintain' })
+    expect(next.phase).toBe('Bulk')
+    expect(next.phaseStart).toBe('2026-06-01')
+    expect(next.phaseLog[next.phaseLog.length - 1]).toEqual({ start: today(), name: 'Maintain' })
+  })
+
+  it('SET_PHASE behavior is unchanged by the split — still a real phase change for all four names', () => {
+    const state = { ...initialState(), phase: 'Cut' as const, phaseStart: '2026-08-03' }
+    const next = reducer(state, { type: 'SET_PHASE', phase: 'Maintain' })
+    expect(next.phase).toBe('Maintain') // SET_PHASE can still make Maintain the real ongoing phase
+    expect(next.phaseStart).toBe(today()) // and it does reset the counter, unlike LOG_FOLDED_WEEK
+    expect(next.phaseLog[next.phaseLog.length - 1]).toEqual({ start: today(), name: 'Maintain' })
+  })
+
+  it('a folded week logged the same ISO week as a real phase change is superseded by it (last-wins dedupe)', () => {
+    // Both actions append via the same withPhaseLogAppend/dedupePhaseLog path, so ordering
+    // matters the same way it always has for phaseLog — no special-casing needed here.
+    const state = { ...initialState(), phase: 'Cut' as const, phaseStart: '2026-08-03' }
+    const afterFold = reducer(state, { type: 'LOG_FOLDED_WEEK', name: 'Deload' })
+    const afterPhaseChange = reducer(afterFold, { type: 'SET_PHASE', phase: 'Bulk' })
+    const thisWeekEntries = afterPhaseChange.phaseLog.filter((p) => mondayOf(p.start) === mondayOf(today()))
+    expect(thisWeekEntries).toEqual([{ start: today(), name: 'Bulk' }])
+  })
+})
+
+describe('reducer — SET_TREND_WINDOW_MODE', () => {
+  it('sets trendWindowMode independently of trendWindow', () => {
+    const state = { ...initialState(), trendWindow: 26 as const }
+    const next = reducer(state, { type: 'SET_TREND_WINDOW_MODE', mode: 'phaseStart' })
+    expect(next.trendWindowMode).toBe('phaseStart')
+    expect(next.trendWindow).toBe(26) // untouched — not a TrendWindow union widen
+  })
+})
+
 describe('reducer — MERGE_NUTRITION', () => {
   it('upserts by date with the incoming value winning, sorted ascending', () => {
     const state = {

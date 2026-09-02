@@ -1,11 +1,12 @@
 import type { NutritionEntry } from '../lib/energy'
-import type { Entry, PhaseLogEntry, PhaseName } from '../lib/math'
+import type { Entry, PhaseLogEntry, PhaseName, TrendWindowMode } from '../lib/math'
 
 export type Screen = 'today' | 'trends' | 'history' | 'setup'
 export type Unit = 'lb' | 'kg'
 export type SolveMode = 'weight' | 'date'
 export type TrendWindow = 8 | 13 | 26 | 99
 export type TrendHorizon = 4 | 6 | 12
+export type { TrendWindowMode }
 
 /** State persisted to local cache and, once synced, to Supabase. */
 export interface PersistedState {
@@ -20,6 +21,9 @@ export interface PersistedState {
   weeklyTarget: number
   unit: Unit
   trendWindow: TrendWindow
+  /** 'weeks' uses `trendWindow` as-is; 'phaseStart'/'lastDeload' scope the chart's window to a
+   * phase-log anchor instead (see `phaseAnchoredShowN`) — `trendWindow` is ignored in those. */
+  trendWindowMode: TrendWindowMode
   trendHorizon: TrendHorizon
   solveMode: SolveMode
   targetLbs: number
@@ -53,6 +57,7 @@ export const PERSISTED_KEYS: (keyof PersistedState)[] = [
   'weeklyTarget',
   'unit',
   'trendWindow',
+  'trendWindowMode',
   'trendHorizon',
   'solveMode',
   'targetLbs',
@@ -70,6 +75,7 @@ export function initialState(): AppState {
     weeklyTarget: -1.0,
     unit: 'lb',
     trendWindow: 26,
+    trendWindowMode: 'weeks',
     trendHorizon: 6,
     solveMode: 'weight',
     targetLbs: 175,

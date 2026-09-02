@@ -1,0 +1,74 @@
+import { shortDate } from '../../lib/dates'
+import { signColor, type Direction, type SignColor, type WeeklyAverage } from '../../lib/math'
+
+const SIGN_COLOR: Record<SignColor, string> = {
+  lime: 'var(--sign-good)',
+  red: 'var(--sign-bad)',
+  grey: 'var(--text-muted)',
+}
+
+const BAR_MAX_HEIGHT = 24 // px, each direction off the zero line
+
+/** Signed week-over-week change, one bar per week, last 8 weeks — a shape-of-the-noise view
+ * alongside the trend line's shape-of-the-average. Bar height is |delta|; direction (above/below
+ * the zero line) is the sign; colour follows the same phase-aware good/bad rule as everywhere
+ * else (signColor), not raw sign. Bars show relative shape only (no unit conversion needed —
+ * they're not labeled with values, just direction and relative magnitude). */
+export function WeeklyChangeBars({ weekly, dir }: { weekly: WeeklyAverage[]; dir: Direction }) {
+  const recent = weekly.slice(-9) // 9 points -> 8 deltas
+  const deltas = recent.slice(1).map((w, i) => ({ monday: w.monday, deltaLbs: w.lbs - recent[i].lbs }))
+  if (!deltas.length) return null
+
+  const maxAbs = Math.max(0.1, ...deltas.map((d) => Math.abs(d.deltaLbs)))
+
+  return (
+    <div style={{ marginTop: 12, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span
+          style={{
+            font: '600 9.5px/1 "Barlow Condensed", sans-serif',
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+            color: 'var(--text-dim)',
+          }}
+        >
+          Weekly change
+        </span>
+        <span style={{ font: '500 10.5px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+          {deltas.length} weeks
+        </span>
+      </div>
+
+      <div style={{ marginTop: 12, display: 'flex', alignItems: 'stretch', height: BAR_MAX_HEIGHT * 2, position: 'relative' }}>
+        <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'var(--divider)' }} />
+        {deltas.map((d) => {
+          const h = Math.max(2, (Math.abs(d.deltaLbs) / maxAbs) * BAR_MAX_HEIGHT)
+          const color = SIGN_COLOR[signColor(d.deltaLbs, dir)]
+          return (
+            <div key={d.monday} style={{ flex: 1, position: 'relative' }}>
+              <div
+                style={{
+                  position: 'absolute',
+                  left: '25%',
+                  right: '25%',
+                  height: h,
+                  borderRadius: 2,
+                  background: color,
+                  ...(d.deltaLbs >= 0 ? { bottom: '50%' } : { top: '50%' }),
+                }}
+              />
+            </div>
+          )
+        })}
+      </div>
+
+      <div style={{ marginTop: 6, display: 'flex' }}>
+        {deltas.map((d) => (
+          <div key={d.monday} style={{ flex: 1, textAlign: 'center', font: '500 8px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+            {shortDate(d.monday)}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}

@@ -1,5 +1,5 @@
 import type { PhaseName } from '../lib/math'
-import type { SolveMode, TrendHorizon, TrendWindow, Unit } from '../store/types'
+import type { SolveMode, TrendHorizon, TrendWindow, TrendWindowMode, Unit } from '../store/types'
 
 export interface SettingsPayload {
   phase: PhaseName
@@ -7,6 +7,7 @@ export interface SettingsPayload {
   weeklyTarget: number
   unit: Unit
   trendWindow: TrendWindow
+  trendWindowMode: TrendWindowMode
   trendHorizon: TrendHorizon
   solveMode: SolveMode
   targetLbs: number
