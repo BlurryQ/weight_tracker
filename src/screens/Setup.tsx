@@ -10,9 +10,11 @@ import { Stepper } from '../components/ui/Stepper'
 // Deload is never a standing phase — it only ever makes sense as the one-week tag below, so it's
 // not in this grid. Maintain still belongs here too: a genuine maintenance block (weeks, this
 // grid) is a different thing from a single maintenance week folded into a Cut/Bulk (the tag row).
+// Hints are deliberately parallel — two words each, same rough length — so the three cards wrap
+// to one line and land at the same height without needing to fix a height explicitly.
 const PHASES: { name: PhaseName; hint: string }[] = [
-  { name: 'Cut', hint: 'deficit, lose steady' },
-  { name: 'Bulk', hint: 'surplus, gain slow' },
+  { name: 'Cut', hint: 'lose steady' },
+  { name: 'Bulk', hint: 'gain slow' },
   { name: 'Maintain', hint: 'hold steady' },
 ]
 
@@ -96,7 +98,7 @@ export function Setup() {
 
       <div style={{ marginTop: 20 }}>
         {sectionLabel('Current phase')}
-        <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+        <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, alignItems: 'stretch' }}>
           {PHASES.map((p) => {
             const selected = phase === p.name
             return (

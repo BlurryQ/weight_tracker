@@ -15,9 +15,9 @@ export function RateBar({ slopeLbs, weeklyTarget, unit }: { slopeLbs: number; we
   const status = paceStatus(slopeLbs, weeklyTarget)
   const label = paceLabel(slopeLbs, weeklyTarget)
   const fillPct = (Math.max(0, Math.min(TRACK_MAX_PCT, status.pct)) / TRACK_MAX_PCT) * 100
-  // The mismatched-direction case (e.g. gaining during a Cut) is worth flagging even though the
-  // fill itself stays cyan — the phrase alone carries that warning.
-  const labelColor = label.endsWith('gaining') || label.endsWith('losing') ? 'var(--sign-bad)' : 'var(--text-dim)'
+  // State-driven, not string-matched: off pace gets the magenta "not going the way you want"
+  // token (same idea as the Trends weekly-change bars' --wchange-against), on pace stays neutral.
+  const labelColor = status.onPace ? 'var(--text-secondary)' : 'var(--pace-off)'
 
   return (
     <div>

@@ -29,12 +29,11 @@ const SIGN_COLOR: Record<SignColor, string> = {
   grey: 'var(--text-muted)',
 }
 
-const WINDOW_OPTIONS: { value: TrendWindow | 'phase'; label: string }[] = [
+const WINDOW_OPTIONS: { value: TrendWindow; label: string }[] = [
   { value: 8, label: '8W' },
   { value: 13, label: '3M' },
   { value: 26, label: '6M' },
   { value: 99, label: 'ALL' },
-  { value: 'phase', label: 'PHASE' },
 ]
 
 const PHASE_ANCHOR_OPTIONS: { value: Extract<TrendWindowMode, 'phaseStart' | 'lastDeload'>; label: string }[] = [
@@ -161,16 +160,36 @@ export function Trends() {
         >
           Window
         </span>
+        {/* PHASE is a mode, not a duration, so it sits beside the duration control rather than as
+            a 5th equal segment inside it. The duration control still shows trendWindow's own
+            value underneath, even while PHASE mode is overriding it for the chart/completion
+            math above — flipping PHASE off returns to exactly that duration. */}
+        <button
+          type="button"
+          onClick={() => dispatch({ type: 'SET_TREND_WINDOW_MODE', mode: trendWindowMode === 'weeks' ? 'phaseStart' : 'weeks' })}
+          style={{
+            padding: '6px 14px',
+            borderRadius: 999,
+            background: trendWindowMode !== 'weeks' ? 'var(--accent)' : 'var(--bg)',
+            color: trendWindowMode !== 'weeks' ? 'var(--on-accent)' : 'var(--text-dim)',
+            font: '600 10px/1 "Barlow Condensed", sans-serif',
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Phase
+        </button>
+      </div>
+
+      <div style={{ marginTop: 8 }}>
         <SegmentedControl
           size="lg"
-          value={trendWindowMode === 'weeks' ? trendWindow : 'phase'}
-          onChange={(picked) => {
-            if (picked === 'phase') {
-              dispatch({ type: 'SET_TREND_WINDOW_MODE', mode: 'phaseStart' })
-            } else {
-              dispatch({ type: 'SET_TREND_WINDOW_MODE', mode: 'weeks' })
-              dispatch({ type: 'SET_TREND_WINDOW', window: picked })
-            }
+          value={trendWindow}
+          onChange={(window) => {
+            dispatch({ type: 'SET_TREND_WINDOW_MODE', mode: 'weeks' })
+            dispatch({ type: 'SET_TREND_WINDOW', window })
           }}
           options={WINDOW_OPTIONS}
         />

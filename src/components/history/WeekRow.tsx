@@ -83,14 +83,15 @@ export function WeekRow({
           {formatKcal(weekKcal)}
         </span>
         {/* The enclosing PhaseCard's header already states Cut/Bulk, so a folded one-week
-            Deload/Maintain event is the only thing worth tagging on the row itself. */}
+            Deload/Maintain event is the only thing worth tagging on the row itself — neutral,
+            same as Setup's own Deload/Maintain treatment, since a hold isn't a direction. */}
         {(phase.raw === 'Deload' || phase.raw === 'Maintain') && (
           <span
             style={{
               font: '600 8.5px/1 "Barlow Condensed", sans-serif',
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
-              color: phase.raw === 'Deload' ? 'var(--red)' : 'var(--amber)',
+              color: 'var(--tag-neutral)',
             }}
           >
             {phase.raw}
