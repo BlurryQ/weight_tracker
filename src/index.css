@@ -13,9 +13,10 @@
      Value flip on top of the token plumbing; layout untouched.
        · cyan     = the single UI accent (was lime) AND Cut phase
        · violet   = Bulk phase (moved off blue-235)
-       · magenta  = support only — the goal-pace reference dash
+       · magenta  = support only — Trends weekly-change bars, "against" direction
        · green/red = +/- weigh-in deltas, unchanged
        · amber    = off-pace, red = Deload/delete — unchanged
+       · goal-pace line reverted to plain muted grey (no colour)
      ──────────────────────────────────────────────────────────── */
 
   /* Surfaces — ink black, faint cool cast (was a faint warm/green one). */
@@ -52,9 +53,10 @@
   --cyan: var(--accent);
   --cyan-text: var(--accent-text);
 
-  /* Support accent — magenta. ONLY the goal-pace reference dash on the
-     chart. Kept subordinate: thin, dashed, low-opacity (see WeightChart). */
-  --goal-pace: oklch(0.66 0.19 340);
+  /* DEPRECATED — the goal-pace line reverts to plain muted grey (pre-redesign
+     look). Aliased so nothing breaks until b7 repoints WeightChart at
+     --text-muted directly; drop this line once it does. */
+  --goal-pace: var(--text-muted);
 
   /* Phase / status. */
   --cut: oklch(0.82 0.14 200); /* Cut phase — cyan, same family as the accent */
@@ -80,6 +82,12 @@
   /* Phase tags (History rows). */
   --phase-tag-cut: color-mix(in oklch, var(--cut), var(--text-dim) 28%);
   --phase-tag-bulk: var(--bulk);
+
+  /* Trends weekly-change bars: cyan when the week moved the right way for
+     the phase, magenta against. Magenta's job now that the goal-pace line
+     is grey. */
+  --wchange-good: var(--accent);
+  --wchange-against: oklch(0.7 0.19 350);
 
   /* Back-compat aliases for literals not yet repointed. */
   --lime: var(--accent);
