@@ -16,7 +16,6 @@
        · magenta  = support only — Trends weekly-change bars, "against" direction
        · green/red = +/- weigh-in deltas, unchanged
        · amber    = off-pace, red = Deload/delete — unchanged
-       · goal-pace line reverted to plain muted grey (no colour)
      ──────────────────────────────────────────────────────────── */
 
   /* Surfaces — ink black, faint cool cast (was a faint warm/green one). */
@@ -52,11 +51,6 @@
      on-pace ring / streak tokens still resolve. */
   --cyan: var(--accent);
   --cyan-text: var(--accent-text);
-
-  /* DEPRECATED — the goal-pace line reverts to plain muted grey (pre-redesign
-     look). Aliased so nothing breaks until b7 repoints WeightChart at
-     --text-muted directly; drop this line once it does. */
-  --goal-pace: var(--text-muted);
 
   /* Phase / status. */
   --cut: oklch(0.82 0.14 200); /* Cut phase — cyan, same family as the accent */
