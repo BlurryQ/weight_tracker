@@ -4,11 +4,9 @@ import { sgn, toDisplay, toLbs } from '../lib/format'
 import {
   completionRatio,
   currentDir,
-  currentStreak,
   fitQualityLabel,
   fitSlope,
   foldedWeeks,
-  longestStreak,
   phaseAnchoredShowN,
   phaseSpans,
   projectionWeeks,
@@ -106,8 +104,6 @@ export function Trends() {
     state.weeklyTarget,
   )
 
-  const streak = currentStreak(entries, today)
-  const best = longestStreak(entries)
   // completionRatio already clamps to the first-ever entry, so a big sentinel safely means "all".
   const completion = completionRatio(entries, trendWindowMode === 'weeks' && trendWindow === 99 ? 9999 : showN, today)
 
@@ -129,35 +125,29 @@ export function Trends() {
         >
           Trends
         </span>
-        <span style={{ font: '500 10.5px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
-          {Math.min(showN, weekly.length)} weeks shown
-        </span>
+        <span style={{ font: '500 10.5px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>what if</span>
       </div>
 
-      <div style={{ marginTop: 14, display: 'flex', alignItems: 'baseline', gap: 18 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
-          <span style={{ font: '700 20px/1 "Barlow Condensed", sans-serif', color: 'var(--cyan)' }}>{streak}</span>
-          <span style={{ font: '500 9px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
-            day{streak === 1 ? '' : 's'} streak
-          </span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
-          <span style={{ font: '700 20px/1 "Barlow Condensed", sans-serif', color: 'var(--text-secondary)' }}>{best}</span>
-          <span style={{ font: '500 9px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>best</span>
-        </div>
-        <span style={{ marginLeft: 'auto', font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)', textAlign: 'right' }}>
-          {completion.logged}/{completion.possible} days
-          <br />
-          {completion.label}
-        </span>
+      <div style={{ marginTop: 10, font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+        {completion.logged}/{completion.possible} days · {completion.label}
       </div>
+
+      <ReachCard
+        unit={unit}
+        solveMode={solveMode}
+        onSolveModeChange={(mode) => dispatch({ type: 'SET_SOLVE_MODE', mode })}
+        targetLbs={targetLbs}
+        targetWeeks={targetWeeks}
+        onEditTarget={() => dispatch({ type: 'OPEN_SHEET', sheet: 'target' })}
+        onWeeksChange={(weeks) => dispatch({ type: 'SET_TARGET_WEEKS', value: weeks })}
+        current={current}
+        slopeLbs={fit4.slope}
+        weightResult={weightResult}
+        dateResult={dateResult}
+      />
 
       <div style={{ marginTop: 20 }}>
         <WeightChart geometry={geometry} W={316} H={184} gutter={32} variant="trends" />
-      </div>
-
-      <div style={{ marginTop: 12 }}>
-        <WeeklyChangeBars weekly={weekly} dir={dir} />
       </div>
 
       <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -172,6 +162,7 @@ export function Trends() {
           Window
         </span>
         <SegmentedControl
+          size="lg"
           value={trendWindowMode === 'weeks' ? trendWindow : 'phase'}
           onChange={(picked) => {
             if (picked === 'phase') {
@@ -205,19 +196,9 @@ export function Trends() {
         <StatCard label="R²" value={geometry.r2.toFixed(2)} note={fitQualityLabel(geometry.r2)} />
       </div>
 
-      <ReachCard
-        unit={unit}
-        solveMode={solveMode}
-        onSolveModeChange={(mode) => dispatch({ type: 'SET_SOLVE_MODE', mode })}
-        targetLbs={targetLbs}
-        targetWeeks={targetWeeks}
-        onEditTarget={() => dispatch({ type: 'OPEN_SHEET', sheet: 'target' })}
-        onWeeksChange={(weeks) => dispatch({ type: 'SET_TARGET_WEEKS', value: weeks })}
-        current={current}
-        slopeLbs={fit4.slope}
-        weightResult={weightResult}
-        dateResult={dateResult}
-      />
+      <div style={{ marginTop: 12 }}>
+        <WeeklyChangeBars weekly={weekly} dir={dir} />
+      </div>
     </div>
   )
 }

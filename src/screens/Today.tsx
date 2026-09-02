@@ -1,6 +1,6 @@
 import { diffDays, mondayOf, shortDate, today as todayIso } from '../lib/dates'
 import { formatWeight, sgn, toDisplay, unitLabel } from '../lib/format'
-import { avg, currentDir, currentStreak, fitSlope, paceStatus, signColor, weeklyAverages } from '../lib/math'
+import { avg, currentDir, currentStreak, fitSlope, signColor, weeklyAverages } from '../lib/math'
 import { useApp } from '../store/AppContext'
 import { Chip } from '../components/ui/Chip'
 import { RateBar } from './today/RateBar'
@@ -66,7 +66,6 @@ export function Today() {
   const fit4 = fitSlope(weekly, 4)
   const dir = currentDir(phase, phaseLog)
 
-  const pace = paceStatus(fit4.slope, weeklyTarget)
   const phaseWeek = Math.floor(diffDays(mondayOf(phaseStart), today) / 7) + 1
   const chipColors = CHIP_COLORS[dir]
   const streak = currentStreak(entries, today)
@@ -89,38 +88,39 @@ export function Today() {
         <span style={{ color: 'var(--accent-text)', fontWeight: 600 }}>{streak}</span> day{streak === 1 ? '' : 's'} streak
       </div>
 
-      <div style={{ marginTop: 16, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <div>
-          <div
+      <div style={{ marginTop: 16 }}>
+        <div
+          style={{
+            font: '600 9.5px/1 "Barlow Condensed", sans-serif',
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+            color: 'var(--text-dim)',
+          }}
+        >
+          7-day average
+        </div>
+        <div style={{ marginTop: 4, display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span style={{ font: '700 78px/0.8 "Barlow Condensed", sans-serif', letterSpacing: '-0.01em', color: 'var(--text-primary)' }}>
+            {formatWeight(a7, unit)}
+          </span>
+          <span
             style={{
-              font: '600 9.5px/1 "Barlow Condensed", sans-serif',
-              letterSpacing: '0.2em',
+              font: '600 13px/1 "Barlow Condensed", sans-serif',
+              letterSpacing: '0.12em',
               textTransform: 'uppercase',
               color: 'var(--text-dim)',
             }}
           >
-            7-day average
-          </div>
-          <div style={{ marginTop: 4, display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <span style={{ font: '700 78px/0.8 "Barlow Condensed", sans-serif', letterSpacing: '-0.01em', color: 'var(--text-primary)' }}>
-              {formatWeight(a7, unit)}
-            </span>
-            <span
-              style={{
-                font: '600 13px/1 "Barlow Condensed", sans-serif',
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                color: 'var(--text-dim)',
-              }}
-            >
-              {unitLabel(unit)}
-            </span>
-          </div>
-          <div style={{ marginTop: 8, font: '500 11.5px "IBM Plex Mono", monospace', color: SIGN_COLOR[signColor(wowLbs, dir)] }}>
-            {sgn(toDisplay(wowLbs, unit))} on the week
-          </div>
+            {unitLabel(unit)}
+          </span>
         </div>
-        <RateBar status={pace} />
+        <div style={{ marginTop: 8, font: '500 11.5px "IBM Plex Mono", monospace', color: SIGN_COLOR[signColor(wowLbs, dir)] }}>
+          {sgn(toDisplay(wowLbs, unit))} on the week
+        </div>
+      </div>
+
+      <div style={{ marginTop: 18, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
+        <RateBar slopeLbs={fit4.slope} weeklyTarget={weeklyTarget} unit={unit} />
       </div>
 
       <div style={{ marginTop: 16 }}>

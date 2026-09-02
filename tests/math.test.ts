@@ -12,9 +12,11 @@ import {
   groupWeeksBySpan,
   leastSquaresFit,
   longestStreak,
+  paceLabel,
   phaseAnchoredShowN,
   phaseAt,
   phaseSpans,
+  phaseTotal,
   projectionWeeks,
   signColor,
   solveByDate,
@@ -477,6 +479,54 @@ describe('phaseAnchoredShowN', () => {
   it('caps at however much history actually exists', () => {
     const log: PhaseLogEntry[] = [{ start: '2000-01-03', name: 'Cut' }] // long before any data
     expect(phaseAnchoredShowN(weekly, log, 'phaseStart')).toBe(weekly.length)
+  })
+})
+
+describe('phaseTotal', () => {
+  it('is the last weekly average minus the first, and the average of the week-to-week rate', () => {
+    const weeks = [
+      { monday: '2026-06-01', lbs: 200, n: 7 },
+      { monday: '2026-06-08', lbs: 198, n: 7 },
+      { monday: '2026-06-15', lbs: 195, n: 7 },
+    ]
+    const result = phaseTotal(weeks)
+    expect(result.changeLbs).toBe(-5)
+    expect(result.avgRateLbs).toBe(-2.5)
+  })
+
+  it('has no rate to give for fewer than 2 weeks', () => {
+    expect(phaseTotal([])).toEqual({ changeLbs: 0, avgRateLbs: 0 })
+    expect(phaseTotal([{ monday: '2026-06-01', lbs: 200, n: 7 }])).toEqual({ changeLbs: 0, avgRateLbs: 0 })
+  })
+})
+
+describe('paceLabel', () => {
+  it('reads "under target, still losing" when a Cut rate has not caught up to target', () => {
+    expect(paceLabel(-0.76, -1.0)).toBe('under target, still losing')
+  })
+
+  it('reads "on target" within the tolerance band', () => {
+    expect(paceLabel(-1.0, -1.0)).toBe('on target')
+    expect(paceLabel(-0.95, -1.0)).toBe('on target')
+  })
+
+  it('reads "over target" when losing faster than the Cut target', () => {
+    expect(paceLabel(-1.3, -1.0)).toBe('over target')
+  })
+
+  it('reads "under target, gaining" when the rate has reversed against a Cut target', () => {
+    expect(paceLabel(0.2, -1.0)).toBe('under target, gaining')
+  })
+
+  it('mirrors verbs for a Bulk target', () => {
+    expect(paceLabel(0.15, 0.3)).toBe('under target, still gaining')
+    expect(paceLabel(-0.1, 0.3)).toBe('under target, losing')
+  })
+
+  it('falls back to flat/gaining/losing for a near-zero (Maintain) target', () => {
+    expect(paceLabel(0.1, 0)).toBe('on target')
+    expect(paceLabel(0.6, 0)).toBe('gaining')
+    expect(paceLabel(-0.6, 0)).toBe('losing')
   })
 })
 

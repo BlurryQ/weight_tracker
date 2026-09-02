@@ -7,11 +7,13 @@ import { useApp } from '../store/AppContext'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { Stepper } from '../components/ui/Stepper'
 
+// Deload is never a standing phase — it only ever makes sense as the one-week tag below, so it's
+// not in this grid. Maintain still belongs here too: a genuine maintenance block (weeks, this
+// grid) is a different thing from a single maintenance week folded into a Cut/Bulk (the tag row).
 const PHASES: { name: PhaseName; hint: string }[] = [
   { name: 'Cut', hint: 'deficit, lose steady' },
   { name: 'Bulk', hint: 'surplus, gain slow' },
-  { name: 'Maintain', hint: 'hold — folds into phase' },
-  { name: 'Deload', hint: 'recover — folds into phase' },
+  { name: 'Maintain', hint: 'hold steady' },
 ]
 
 function sectionLabel(text: string) {
@@ -94,7 +96,7 @@ export function Setup() {
 
       <div style={{ marginTop: 20 }}>
         {sectionLabel('Current phase')}
-        <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
           {PHASES.map((p) => {
             const selected = phase === p.name
             return (

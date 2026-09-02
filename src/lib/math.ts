@@ -386,3 +386,35 @@ export function phaseAnchoredShowN(weekly: WeeklyAverage[], log: PhaseLogEntry[]
   const weeksSince = Math.floor(diffDays(mondayOf(anchor), lastMonday) / 7) + 1
   return Math.max(3, Math.min(weekly.length, weeksSince))
 }
+
+export interface PhaseTotal {
+  changeLbs: number
+  avgRateLbs: number
+}
+
+/** Total weight change over a phase-span's shown weeks (last weekly average minus first — same
+ * basis as the Trends "Change" card) and the average weekly rate implied by it. Fewer than 2
+ * weeks has no rate to give. */
+export function phaseTotal(weeks: WeeklyAverage[]): PhaseTotal {
+  if (weeks.length < 2) return { changeLbs: 0, avgRateLbs: 0 }
+  const changeLbs = weeks[weeks.length - 1].lbs - weeks[0].lbs
+  return { changeLbs, avgRateLbs: changeLbs / (weeks.length - 1) }
+}
+
+/** A short phrase describing how the 4-week rate compares to the weekly target, for the Today
+ * rate bar. The verb ("losing"/"gaining") follows the sign of the rate itself, not the phase
+ * name, so it reads correctly under both a Cut and a Bulk target. A near-zero target (a genuine
+ * Maintain phase, not a folded week) has no magnitude to compare against, so it only reports
+ * flat/gaining/losing. */
+export function paceLabel(slopeLbs: number, weeklyTarget: number): string {
+  if (Math.abs(weeklyTarget) < 0.05) {
+    if (Math.abs(slopeLbs) < 0.35) return 'on target'
+    return slopeLbs > 0 ? 'gaining' : 'losing'
+  }
+  const verb = slopeLbs > 0 ? 'gaining' : slopeLbs < 0 ? 'losing' : 'flat'
+  if (Math.sign(slopeLbs) !== Math.sign(weeklyTarget)) return `under target, ${verb}`
+  const ratio = slopeLbs / weeklyTarget
+  if (ratio > 1.15) return 'over target'
+  if (ratio < 0.85) return `under target, still ${verb}`
+  return 'on target'
+}

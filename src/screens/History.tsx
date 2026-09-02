@@ -1,9 +1,28 @@
+import type { ReactNode } from 'react'
 import { DAY_NAMES, fullDate, today as todayIso, weekCommencingLabel } from '../lib/dates'
 import { weeklyKcal } from '../lib/energy'
-import { formatWeekForClipboard } from '../lib/format'
-import { currentDir, groupWeeksBySpan, phaseAt, signColor, weeklyAverages, type PhaseSpan, type WeeklyAverage } from '../lib/math'
+import { formatWeekForClipboard, sgn, toDisplay } from '../lib/format'
+import {
+  currentDir,
+  groupWeeksBySpan,
+  phaseAt,
+  phaseSpans,
+  phaseTotal,
+  signColor,
+  weeklyAverages,
+  type PhaseSpan,
+  type SignColor,
+  type WeeklyAverage,
+} from '../lib/math'
 import { useApp } from '../store/AppContext'
+import type { Unit } from '../store/types'
 import { WeekRow } from '../components/history/WeekRow'
+
+const SIGN_COLOR: Record<SignColor, string> = {
+  lime: 'var(--sign-good)',
+  red: 'var(--sign-bad)',
+  grey: 'var(--text-muted)',
+}
 
 async function copyToClipboard(text: string): Promise<boolean> {
   try {
@@ -27,24 +46,83 @@ async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
-/** One section header per Cut/Bulk span — Deload/Maintain weeks fold into the enclosing span
- * here (they still surface as their own tag on the individual WeekRow, via phaseAt below) rather
- * than getting their own section, since they're one-week events, not spans of their own. */
-function GroupHeader({ span }: { span: PhaseSpan }) {
+/** One bordered card per Cut/Bulk span, wrapping its weeks. Deload/Maintain weeks fold into the
+ * enclosing span here — no card of their own, since they're one-week events — but still surface
+ * as their own tag on the individual collapsed WeekRow (see the caller). The header states the
+ * phase and total, so the redundant per-row Cut/Bulk tag is dropped inside. */
+function PhaseCard({
+  span,
+  weeks,
+  isLive,
+  unit,
+  children,
+}: {
+  span: PhaseSpan
+  /** Most-recent-first, matching the row order rendered below — reversed back to chronological
+   * order here before any first/last/total math, or the total comes out negated. */
+  weeks: WeeklyAverage[]
+  isLive: boolean
+  unit: Unit
+  children: ReactNode
+}) {
   const color = span.dir === 'Cut' ? 'var(--cut)' : 'var(--bulk)'
+  const chronological = weeks.slice().reverse()
+  const { changeLbs, avgRateLbs } = phaseTotal(chronological)
+  const first = chronological[0]
+  const last = chronological[chronological.length - 1]
+
   return (
-    <div style={{ marginTop: 24, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flex: 'none' }} />
-      <span
-        style={{
-          font: '600 9.5px/1 "Barlow Condensed", sans-serif',
-          letterSpacing: '0.2em',
-          textTransform: 'uppercase',
-          color: 'var(--text-dim)',
-        }}
-      >
-        {span.dir} · since {fullDate(span.start)}
-      </span>
+    <div
+      style={{
+        marginTop: 24,
+        padding: 14,
+        borderRadius: 18,
+        border: `1.5px solid color-mix(in oklch, ${color} 30%, var(--divider))`,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span
+              style={{
+                font: '700 15px/1 "Barlow Condensed", sans-serif',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color,
+              }}
+            >
+              {span.dir}
+            </span>
+            {isLive && (
+              <span
+                style={{
+                  padding: '2px 7px',
+                  borderRadius: 999,
+                  background: color,
+                  color: 'var(--on-accent)',
+                  font: '700 8px/1 "Barlow Condensed", sans-serif',
+                  letterSpacing: '0.1em',
+                }}
+              >
+                LIVE
+              </span>
+            )}
+          </div>
+          <div style={{ marginTop: 4, font: '500 9.5px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+            {fullDate(first.monday)} – {isLive ? 'ongoing' : fullDate(last.monday)} · {weeks.length} wk{weeks.length === 1 ? '' : 's'}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ font: '700 22px/1 "Barlow Condensed", sans-serif', color: SIGN_COLOR[signColor(changeLbs, span.dir)] }}>
+            {sgn(toDisplay(changeLbs, unit))}
+          </div>
+          <div style={{ marginTop: 3, font: '500 9.5px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+            {sgn(toDisplay(avgRateLbs, unit), 2)} /wk
+          </div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 12 }}>{children}</div>
     </div>
   )
 }
@@ -72,6 +150,10 @@ export function History() {
     .slice()
     .reverse()
     .map((g) => ({ span: g.span, weeks: g.weeks.slice().reverse() }))
+
+  // The most recent Cut/Bulk span (phaseSpans' last entry) is the one still open-ended — its
+  // card gets the LIVE pill and an "ongoing" end date instead of its last shown week's date.
+  const liveSpan = phaseSpans(phaseLog).at(-1) ?? null
 
   async function copyWeek(week: WeeklyAverage, deltaLbs: number | null) {
     const text = formatWeekForClipboard({
@@ -108,41 +190,47 @@ export function History() {
         tap a week to open its days · tap a day to edit
       </div>
 
-      {groups.map((group) => (
-        <div key={group.span?.start ?? 'pre-tracking'}>
-          {group.span && <GroupHeader span={group.span} />}
-          {group.weeks.map((week) => {
-            const deltaLbs = deltaByMonday.get(week.monday) ?? null
-            const phaseAtWeek = phaseAt(week.monday, phaseLog)
-            // Grade each week's delta by the phase direction it actually happened in, not by
-            // whatever phase you're in today — a gain during a real Bulk week was the goal, and
-            // should read lime there even while looking at History mid-Cut.
-            const rowDir = phaseAtWeek.dir ?? dir
-            return (
-              <WeekRow
-                key={week.monday}
-                monday={week.monday}
-                weeklyLbs={week.lbs}
-                n={week.n}
-                deltaLbs={deltaLbs}
-                hasPrev={deltaLbs != null}
-                signColorOf={(v) => signColor(v, rowDir)}
-                phase={phaseAtWeek}
-                open={openWeek === week.monday}
-                onToggle={() => dispatch({ type: 'TOGGLE_WEEK', monday: week.monday })}
-                entries={entries}
-                weekKcal={kcalByMonday.get(week.monday) ?? null}
-                nutrition={nutrition}
-                unit={unit}
-                today={today}
-                dayNames={DAY_NAMES}
-                onEditDay={(date) => dispatch({ type: 'OPEN_SHEET', sheet: date })}
-                onCopy={() => copyWeek(week, deltaLbs)}
-              />
-            )
-          })}
-        </div>
-      ))}
+      {groups.map((group) => {
+        const rows = group.weeks.map((week) => {
+          const deltaLbs = deltaByMonday.get(week.monday) ?? null
+          const phaseAtWeek = phaseAt(week.monday, phaseLog)
+          // Grade each week's delta by the phase direction it actually happened in, not by
+          // whatever phase you're in today — a gain during a real Bulk week was the goal, and
+          // should read lime there even while looking at History mid-Cut.
+          const rowDir = phaseAtWeek.dir ?? dir
+          return (
+            <WeekRow
+              key={week.monday}
+              monday={week.monday}
+              weeklyLbs={week.lbs}
+              n={week.n}
+              deltaLbs={deltaLbs}
+              hasPrev={deltaLbs != null}
+              signColorOf={(v) => signColor(v, rowDir)}
+              phase={phaseAtWeek}
+              open={openWeek === week.monday}
+              onToggle={() => dispatch({ type: 'TOGGLE_WEEK', monday: week.monday })}
+              entries={entries}
+              weekKcal={kcalByMonday.get(week.monday) ?? null}
+              nutrition={nutrition}
+              unit={unit}
+              today={today}
+              dayNames={DAY_NAMES}
+              onEditDay={(date) => dispatch({ type: 'OPEN_SHEET', sheet: date })}
+              onCopy={() => copyWeek(week, deltaLbs)}
+            />
+          )
+        })
+
+        if (!group.span) return <div key="pre-tracking">{rows}</div>
+
+        const isLive = liveSpan != null && group.span.start === liveSpan.start && group.span.dir === liveSpan.dir
+        return (
+          <PhaseCard key={group.span.start} span={group.span} weeks={group.weeks} isLive={isLive} unit={unit}>
+            {rows}
+          </PhaseCard>
+        )
+      })}
     </div>
   )
 }
