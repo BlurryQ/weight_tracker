@@ -9,68 +9,77 @@
 
 :root {
   /* ────────────────────────────────────────────────────────────
-     PLUMBING PASS — token names only. Every value here is the
-     current lime/ink palette, unchanged; this commit is a no-op
-     refactor that just gives the ~20 scattered hex/oklch literals
-     (and the three local SIGN_COLOR maps) one named home each.
-     The Neon value flip is a separate diff on top of this.
+     NEON — ink black + cyan, cyan-led (matches desired/ mockup).
+     Value flip on top of the token plumbing; layout untouched.
+       · cyan     = the single UI accent (was lime) AND Cut phase
+       · violet   = Bulk phase (moved off blue-235)
+       · magenta  = support only — the goal-pace reference dash
+       · green/red = +/- weigh-in deltas, unchanged
+       · amber    = off-pace, red = Deload/delete — unchanged
      ──────────────────────────────────────────────────────────── */
 
-  /* Surfaces */
-  --bg: #0b0c0b;
-  --surface: #131513;
-  --raised: #1c201b;
-  --raised-hover: #272c26;
-  --hairline: #171a17;
-  --hairline-strong: #191c19;
-  --divider: #1c201b;
-  --chart-marker: #2b302a;
+  /* Surfaces — ink black, faint cool cast (was a faint warm/green one). */
+  --bg: #0a0b0c;
+  --surface: #121316;
+  --raised: #1b1d21;
+  --raised-hover: #262930;
+  --hairline: #17181c;
+  --hairline-strong: #1a1b1f;
+  --divider: #1b1d21;
+  --chart-marker: #2a2c32;
 
-  /* Text ramp. --text-muted is genuine desaturated grey on purpose:
-     the muted-vs-vivid gap is what separates the real trend line
-     from the target reference line on the chart. */
-  --text-primary: #f2f4ef;
-  --text-secondary: #e7eae3;
-  --text-muted: #7a8474;
-  --text-dim: #5f655d;
-  --text-disabled: #3a403a;
+  /* Text ramp — neutralised to true grey. --text-muted stays genuine
+     desaturated grey on purpose (NOT tinted toward cyan): the
+     muted-vs-vivid gap is what separates the real trend line from the
+     goal-pace reference line on the chart. */
+  --text-primary: #f2f3f5;
+  --text-secondary: #e3e5ea;
+  --text-muted: #83848a;
+  --text-dim: #616269;
+  --text-disabled: #3b3c43;
 
-  /* Accent — the single "act on this / headline" colour. */
-  --accent: oklch(0.82 0.17 128);
-  --accent-hover: oklch(0.88 0.17 128);
-  --accent-text: oklch(0.86 0.14 128);
-  --accent-glow: oklch(0.82 0.17 128 / 0.3); /* FAB drop-shadow */
-  --on-accent: #0b0c0b; /* text/glyphs sitting on an accent fill */
+  /* Accent — cyan. The single "act on this / headline" colour: FAB,
+     active pills, links, chart data line + area, streak, pace ring.
+     --accent-text is a touch lighter for cyan-on-ink text runs. */
+  --accent: oklch(0.82 0.14 200);
+  --accent-hover: oklch(0.88 0.13 200);
+  --accent-text: oklch(0.86 0.11 200);
+  --accent-glow: oklch(0.82 0.14 200 / 0.35); /* FAB drop-shadow */
+  --on-accent: #0a0b0c; /* dark text/glyphs on an accent fill — cyan is bright, ~11:1 */
 
-  /* Secondary accent — "on track / positive progress": on-pace ring,
-     streak. Equal to the accent today; diverges under Neon. */
-  --cyan: oklch(0.82 0.17 128);
-  --cyan-text: oklch(0.86 0.14 128);
+  /* Was the secondary accent; now folds into the primary. Kept so the
+     on-pace ring / streak tokens still resolve. */
+  --cyan: var(--accent);
+  --cyan-text: var(--accent-text);
+
+  /* Support accent — magenta. ONLY the goal-pace reference dash on the
+     chart. Kept subordinate: thin, dashed, low-opacity (see WeightChart). */
+  --goal-pace: oklch(0.66 0.19 340);
 
   /* Phase / status. */
-  --cut: oklch(0.82 0.17 128);
-  --bulk: oklch(0.76 0.13 235);
-  --bulk-text: oklch(0.76 0.13 235); /* Bulk chip label on Today */
-  --amber: oklch(0.78 0.15 75); /* off-pace */
-  --red: oklch(0.68 0.15 25); /* destructive / delete */
+  --cut: oklch(0.82 0.14 200); /* Cut phase — cyan, same family as the accent */
+  --bulk: oklch(0.7 0.13 280); /* Bulk phase — violet, was blue 235 */
+  --bulk-text: oklch(0.78 0.12 280); /* Bulk chip label on Today */
+  --amber: oklch(0.8 0.15 78); /* off-pace — unchanged */
+  --red: oklch(0.68 0.16 25); /* Deload / destructive / delete — unchanged */
 
-  /* +/- weigh-in deltas. Independent of the accent so gained/lost
-     weight stays green/red no matter what the accent becomes. */
-  --sign-good: oklch(0.82 0.17 128);
-  --sign-bad: oklch(0.68 0.15 25);
+  /* +/- weigh-in deltas. Independent of the accent — gained/lost weight
+     stays green/red regardless of the accent hue. */
+  --sign-good: oklch(0.8 0.15 138);
+  --sign-bad: oklch(0.68 0.16 25);
 
-  /* Chart phase bands — drawn behind the data line. */
-  --band-cut-fill: oklch(0.82 0.17 128 / 0.05);
-  --band-cut-edge: oklch(0.82 0.17 128 / 0.22);
-  --band-cut-label: oklch(0.7 0.12 128);
-  --band-bulk-fill: oklch(0.76 0.13 235 / 0.07);
-  --band-bulk-edge: oklch(0.76 0.13 235 / 0.28);
-  --band-bulk-label: oklch(0.76 0.13 235);
-  --band-marker: rgba(255, 255, 255, 0.4); /* phase-change divider */
+  /* Chart phase bands — drawn behind the cyan data line. */
+  --band-cut-fill: oklch(0.82 0.14 200 / 0.05);
+  --band-cut-edge: oklch(0.82 0.14 200 / 0.2);
+  --band-cut-label: color-mix(in oklch, var(--cut), var(--text-dim) 40%);
+  --band-bulk-fill: oklch(0.7 0.13 280 / 0.1);
+  --band-bulk-edge: oklch(0.7 0.13 280 / 0.34);
+  --band-bulk-label: color-mix(in oklch, var(--bulk), var(--text-dim) 22%);
+  --band-marker: rgba(255, 255, 255, 0.35); /* phase-change divider */
 
   /* Phase tags (History rows). */
-  --phase-tag-cut: oklch(0.7 0.12 128);
-  --phase-tag-bulk: oklch(0.76 0.13 235);
+  --phase-tag-cut: color-mix(in oklch, var(--cut), var(--text-dim) 28%);
+  --phase-tag-bulk: var(--bulk);
 
   /* Back-compat aliases for literals not yet repointed. */
   --lime: var(--accent);

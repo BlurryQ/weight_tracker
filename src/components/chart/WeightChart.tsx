@@ -72,7 +72,7 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
             top: g.targetProjY + 3,
             textAlign: 'right',
             font: '500 8.5px "IBM Plex Mono", monospace',
-            color: 'var(--text-muted)',
+            color: 'color-mix(in oklch, var(--goal-pace), var(--text-dim) 35%)',
           }}
         >
           target
@@ -126,26 +126,27 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
         {/* … continued forward as the dashed projection. This is the headline line: full weight. */}
         <path d={g.proj} fill="none" stroke="var(--accent)" strokeWidth={2} strokeDasharray="5 4" strokeLinecap="round" />
 
-        {/* Target-rate reference: forward only, thinner and dimmer, with a terminal tick. */}
+        {/* Goal-pace reference: forward only, magenta dash — kept subordinate to the
+            data line and the projection (thin, dashed, low opacity). */}
         {g.targetProj && (
           <>
             <path
               d={g.targetProj}
               fill="none"
-              stroke="var(--text-muted)"
+              stroke="var(--goal-pace)"
               strokeWidth={1.25}
-              strokeDasharray="1 5"
+              strokeDasharray="4 4"
               strokeLinecap="round"
-              opacity={0.5}
+              opacity={0.55}
             />
             <line
               x1={g.projX}
               x2={g.projX}
               y1={g.targetProjY - 4}
               y2={g.targetProjY + 4}
-              stroke="var(--text-muted)"
+              stroke="var(--goal-pace)"
               strokeWidth={1.25}
-              opacity={0.6}
+              opacity={0.65}
             />
           </>
         )}
