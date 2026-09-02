@@ -120,6 +120,19 @@ describe('buildChartGeometry', () => {
   it('omits the target-pace reference line when no target rate is given', () => {
     const geo = buildChartGeometry(weekly, [], TODAY_CFG)
     expect(geo.targetProj).toBe('')
+    expect(geo.targetProjVal).toBe(0)
+    expect(geo.targetProjX).toBe(0)
+  })
+
+  it('exposes the target line forward endpoint value + column for the chart labels', () => {
+    const geo = buildChartGeometry(weekly, [], TODAY_CFG, undefined, [], -1.0)
+    // targetProjVal is the last actual weekly value carried forward at the target rate,
+    // in the same (display) units as projVal — a −1 lb/wk goal drops it fwd lb below `last`.
+    expect(geo.targetProjVal).toBeCloseTo(geo.last + -1.0 * TODAY_CFG.fwd, 6)
+    // Both forward lines terminate in the same x column.
+    expect(geo.targetProjX).toBe(geo.projX)
+    // The label strings the component renders match the exposed values.
+    expect(geo.targetProj.endsWith(` ${geo.targetProjY.toFixed(1)}`)).toBe(true)
   })
 
   it('draws the target-pace line from the same anchor as the real projection, diverging by the difference in slope', () => {
