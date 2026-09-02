@@ -26,7 +26,7 @@ import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { WeeklyChangeBars } from './trends/WeeklyChangeBars'
 
 const SIGN_COLOR: Record<SignColor, string> = {
-  lime: 'var(--sign-good)', // +/- deltas stay green/red, independent of the magenta accent
+  lime: 'var(--sign-good)', // +/- deltas stay green/red, independent of the accent hue
   red: 'var(--sign-bad)',
   grey: 'var(--text-muted)',
 }
