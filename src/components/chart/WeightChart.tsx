@@ -134,19 +134,19 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
           opacity={0.72}
         />
 
-        {/* Goal-pace reference: forward only, quiet muted grey, thinnest of the lines, with a
-            terminal tick + the "target" edge label above. The gap to the projection is the
-            goal-vs-projected read — kept understated on purpose. */}
+        {/* Goal-pace reference: forward only, muted grey, still clearly below the cyan
+            projection — subordinate by colour and a sparser dash, not by near-invisibility.
+            The gap to the projection is the goal-vs-projected read. */}
         {g.targetProj && (
           <>
             <path
               d={g.targetProj}
               fill="none"
               stroke="var(--text-muted)"
-              strokeWidth={1.25}
-              strokeDasharray="1 5"
+              strokeWidth={1.4}
+              strokeDasharray="2 4"
               strokeLinecap="round"
-              opacity={0.5}
+              opacity={0.85}
             />
             <line
               x1={g.targetProjX}
@@ -154,8 +154,8 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
               y1={g.targetProjY - 4}
               y2={g.targetProjY + 4}
               stroke="var(--text-muted)"
-              strokeWidth={1.25}
-              opacity={0.6}
+              strokeWidth={1.4}
+              opacity={0.9}
             />
           </>
         )}
