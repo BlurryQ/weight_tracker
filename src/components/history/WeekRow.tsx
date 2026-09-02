@@ -1,14 +1,8 @@
 import { addDays, DAY_NAMES, weekCommencingLabel } from '../../lib/dates'
 import type { NutritionEntry } from '../../lib/energy'
-import { formatWeight, sgn, toDisplay } from '../../lib/format'
+import { formatKcal, formatWeight, sgn, toDisplay } from '../../lib/format'
 import type { Entry, PhaseAt, SignColor } from '../../lib/math'
 import type { Unit } from '../../store/types'
-
-/** '2,010' — thousands-separated, or '—' for no data. */
-function formatKcal(kcal: number | null | undefined): string {
-  if (kcal == null || !(kcal > 0)) return '—'
-  return Math.round(kcal).toLocaleString('en-US')
-}
 
 const SIGN_COLOR: Record<SignColor, string> = {
   lime: 'var(--sign-good)', // +/- deltas stay green/red, independent of the magenta accent

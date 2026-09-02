@@ -106,3 +106,10 @@ export function isPlausibleWeight(value: number, unit: Unit): boolean {
   const lbs = toLbs(value, unit)
   return lbs >= 50 && lbs <= 600
 }
+
+/** '2,010' — thousands-separated. Anything without a positive total (null / 0 / undefined —
+ * a week or day MyFitnessPal never logged) renders as an em dash, never '0'. */
+export function formatKcal(kcal: number | null | undefined): string {
+  if (kcal == null || !(kcal > 0)) return '—'
+  return Math.round(kcal).toLocaleString('en-US')
+}
