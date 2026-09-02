@@ -5,7 +5,6 @@ import {
   completionRatio,
   currentDir,
   fitQualityLabel,
-  fitSlope,
   foldedWeeks,
   hasFoldedWeek,
   phaseAnchoredShowN,
@@ -124,13 +123,26 @@ export function Trends() {
         : Math.max(4, Math.round(trendWindow / 2))
       : Math.min(13, Math.max(4, Math.round(showN / 2)))
 
-  // Reach solving always runs off the recent 4-week rate, independent of the window chip above —
-  // matches the original Today behavior this card is inherited from.
-  const fit4 = fitSlope(weekly, 4)
+  // Reach tracks the selected window's own slope — the same phase-scoped fit the FIT SLOPE card
+  // and the chart's trend line use (geometry.slope) — rather than a fixed 4-week rate, so the
+  // window chip is the one smoothing control and Reach never disagrees with FIT SLOPE. That
+  // slope is fwd-independent (buildChartGeometry's `fwd` only extends the drawn projection, it
+  // doesn't change the fit), but the chart's own forward projection needs Reach's solved
+  // weeks-out first — so a cheap throwaway first pass (fwd: 0) gets just the slope, breaking
+  // what would otherwise be a circular dependency, before the real geometry is built below.
+  const slopeGeometry = buildChartGeometry(
+    weekly,
+    spans,
+    { W: 316, H: 184, gutter: 32, showN, fitK, fwd: 0, gridN: 5 },
+    (lbs) => toDisplay(lbs, unit),
+    foldedWeeks(phaseLog),
+    state.weeklyTarget,
+  )
+
   const lastWeekly = weekly[weekly.length - 1]
   const current = lastWeekly ? lastWeekly.lbs : 0
   const lastMonday = lastWeekly ? lastWeekly.monday : mondayOf(today)
-  const reachCtx = { current, slopeLbs: fit4.slope, lastMonday }
+  const reachCtx = { current, slopeLbs: toLbs(slopeGeometry.slope, unit), lastMonday }
   const weightResult = solveByWeight(reachCtx, targetLbs)
   const dateResult = solveByDate(reachCtx, targetWeeks)
   const solveWeeks = projectionWeeks(solveMode, targetWeeks, weightResult)
@@ -171,7 +183,6 @@ export function Trends() {
         >
           Trends
         </span>
-        <span style={{ font: '500 10.5px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>what if</span>
       </div>
 
       <div style={{ marginTop: 10, font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
@@ -187,7 +198,7 @@ export function Trends() {
         onEditTarget={() => dispatch({ type: 'OPEN_SHEET', sheet: 'target' })}
         onWeeksChange={(weeks) => dispatch({ type: 'SET_TARGET_WEEKS', value: weeks })}
         current={current}
-        slopeLbs={fit4.slope}
+        slopeLbs={toLbs(geometry.slope, unit)}
         weightResult={weightResult}
         dateResult={dateResult}
       />

@@ -47,6 +47,18 @@ describe('buildChartGeometry', () => {
     expect(geo.slope).toBeCloseTo(-0.9, 1) // the cut's rate, not a near-flat bulk+cut blend
   })
 
+  it('the fit slope/r2/fitWeeks are independent of fwd — only the drawn projection changes', () => {
+    // Trends' Reach card relies on exactly this: it needs the window's fit slope before it can
+    // know how many weeks to project forward, so it gets the slope from a throwaway fwd:0 pass
+    // and feeds the real fwd into a second pass — this only holds if fwd can't feed back into
+    // the fit itself.
+    const noProjection = buildChartGeometry(weekly, phaseSpans(PHASE_LOG), { ...TODAY_CFG, fwd: 0 })
+    const farProjection = buildChartGeometry(weekly, phaseSpans(PHASE_LOG), { ...TODAY_CFG, fwd: 52 })
+    expect(farProjection.slope).toBeCloseTo(noProjection.slope, 10)
+    expect(farProjection.r2).toBeCloseTo(noProjection.r2, 10)
+    expect(farProjection.fitWeeks).toBe(noProjection.fitWeeks)
+  })
+
   it('anchors the projection at the last actual point plus slope*weeks, not the fit intercept', () => {
     const geo = buildChartGeometry(weekly, [], TODAY_CFG)
     const lastActual = weekly[weekly.length - 1].lbs
