@@ -73,15 +73,23 @@
   --band-bulk-label: color-mix(in oklch, var(--bulk), var(--text-dim) 22%);
   --band-marker: rgba(255, 255, 255, 0.35); /* phase-change divider */
 
-  /* Phase tags (History rows). */
+  /* Phase tags (History rows, Setup). Cut/Bulk carry phase colour;
+     Deload/Maintain read neutral — a hold isn't a direction. --tag-neutral
+     is --text-muted nudged lighter so it still reads as a pill label. */
   --phase-tag-cut: color-mix(in oklch, var(--cut), var(--text-dim) 28%);
   --phase-tag-bulk: var(--bulk);
+  --tag-neutral: color-mix(in oklch, var(--text-muted), var(--text-primary) 20%);
 
   /* Trends weekly-change bars: cyan when the week moved the right way for
      the phase, magenta against. Magenta's job now that the goal-pace line
      is grey. */
   --wchange-good: var(--accent);
   --wchange-against: oklch(0.7 0.19 350);
+
+  /* Today rate-bar status phrase: magenta when off pace (same "not going
+     the way you want" idea as --wchange-against), a neutral --text-* colour
+     when on pace. */
+  --pace-off: var(--wchange-against);
 
   /* Back-compat aliases for literals not yet repointed. */
   --lime: var(--accent);
