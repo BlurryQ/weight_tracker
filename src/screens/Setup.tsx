@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { healthConnectSupported, isCalorieAccessGranted, requestCalorieAccess, syncHealthConnect } from '../data/healthConnect'
-import { dayLabel, diffDays, mondayOf, today as todayIso } from '../lib/dates'
+import { dayLabel, diffDays, fullDate, mondayOf, today as todayIso } from '../lib/dates'
 import { sgn, toDisplay, toLbs, unitLabel } from '../lib/format'
 import { currentDir, type PhaseName } from '../lib/math'
 import { useApp } from '../store/AppContext'
@@ -25,6 +25,26 @@ function sectionLabel(text: string) {
       }}
     >
       {text}
+    </div>
+  )
+}
+
+function DataStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ flex: 1 }}>
+      <div
+        style={{
+          font: '600 9px/1 "Barlow Condensed", sans-serif',
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          color: 'var(--text-dim)',
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ marginTop: 5, font: '700 18px/1 "Barlow Condensed", sans-serif', color: 'var(--text-secondary)' }}>
+        {value}
+      </div>
     </div>
   )
 }
@@ -89,8 +109,8 @@ export function Setup() {
                   cursor: 'pointer',
                   padding: '13px 14px',
                   borderRadius: 14,
-                  background: selected ? 'oklch(0.82 0.17 128 / .12)' : 'var(--surface)',
-                  border: selected ? '1.5px solid var(--lime)' : '1.5px solid var(--surface)',
+                  background: selected ? 'color-mix(in oklch, var(--accent) 12%, transparent)' : 'var(--surface)',
+                  border: selected ? '1.5px solid var(--accent)' : '1.5px solid var(--surface)',
                   textAlign: 'left',
                 }}
               >
@@ -99,7 +119,7 @@ export function Setup() {
                     font: '700 16px/1.2 "Barlow Condensed", sans-serif',
                     letterSpacing: '0.06em',
                     textTransform: 'uppercase',
-                    color: selected ? 'var(--lime-text)' : 'var(--text-secondary)',
+                    color: selected ? 'var(--accent-text)' : 'var(--text-secondary)',
                   }}
                 >
                   {p.name}
@@ -111,12 +131,42 @@ export function Setup() {
             )
           })}
         </div>
+
+        <div style={{ marginTop: 10, font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+          or tag just this week, without resetting the phase:
+        </div>
+        <div style={{ marginTop: 6, display: 'flex', gap: 8 }}>
+          {(['Deload', 'Maintain'] as const).map((name) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => {
+                dispatch({ type: 'LOG_FOLDED_WEEK', name })
+                dispatch({ type: 'SHOW_TOAST', message: `${name} logged for this week` })
+              }}
+              style={{
+                flex: 1,
+                cursor: 'pointer',
+                padding: '8px 12px',
+                borderRadius: 999,
+                border: '1px dashed var(--chart-marker)',
+                background: 'transparent',
+                font: '600 10px/1 "Barlow Condensed", sans-serif',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                color: 'var(--text-dim)',
+              }}
+            >
+              Log {name.toLowerCase()} week
+            </button>
+          ))}
+        </div>
       </div>
 
       <div style={{ marginTop: 20, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
         {sectionLabel('Weekly target')}
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ font: '700 25px/1 "Barlow Condensed", sans-serif', color: 'var(--lime)' }}>
+          <span style={{ font: '700 25px/1 "Barlow Condensed", sans-serif', color: 'var(--accent)' }}>
             {sgn(toDisplay(weeklyTarget, unit), 2)} {unitLabel(unit)}/wk
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
@@ -173,7 +223,7 @@ export function Setup() {
         {healthConnectSupported() ? (
           <>
             <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ font: '700 16px/1.2 "Barlow Condensed", sans-serif', letterSpacing: '0.04em', textTransform: 'uppercase', color: calories === 'connected' ? 'var(--lime-text)' : 'var(--text-secondary)' }}>
+              <span style={{ font: '700 16px/1.2 "Barlow Condensed", sans-serif', letterSpacing: '0.04em', textTransform: 'uppercase', color: calories === 'connected' ? 'var(--accent-text)' : 'var(--text-secondary)' }}>
                 {calories === 'connected' ? 'Connected' : 'Not connected'}
               </span>
               {calories !== 'connected' && (
@@ -186,8 +236,8 @@ export function Setup() {
                     cursor: 'pointer',
                     padding: '9px 16px',
                     borderRadius: 999,
-                    background: 'var(--lime)',
-                    color: '#0b0c0b',
+                    background: 'var(--accent)',
+                    color: 'var(--on-accent)',
                     font: '700 11px/1 "Barlow Condensed", sans-serif',
                     letterSpacing: '0.14em',
                     textTransform: 'uppercase',
@@ -225,20 +275,16 @@ export function Setup() {
       </div>
 
       <div style={{ marginTop: 10, marginBottom: 20, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
-        {sectionLabel('Sync shape')}
-        <pre
-          style={{
-            marginTop: 8,
-            font: '500 10px/1.5 "IBM Plex Mono", monospace',
-            color: 'var(--text-muted)',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-all',
-          }}
-        >
-          {`PUT /entries/{date}\n{ "lbs": ${entries[entries.length - 1]?.lbs ?? 0} }`}
-        </pre>
-        <div style={{ marginTop: 8, font: '500 10px/1.5 "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
-          Synced to Supabase when online, cached locally otherwise. One PUT per entry, keyed on date.
+        {sectionLabel('Data')}
+        <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+          <DataStat label="Weigh-ins" value={String(entries.length)} />
+          <DataStat label="Since" value={entries[0] ? fullDate(entries[0].date) : '—'} />
+          <DataStat label="Calorie days" value={String(nutrition.length)} />
+        </div>
+        {/* SOURCE ROW SLOT — e9 firms up the calorie-days wording and adds a "source" row here
+            (Health Connect / MyFitnessPal), once that lands. */}
+        <div style={{ marginTop: 10, font: '500 10px/1.5 "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+          Synced to Supabase when online, cached locally otherwise.
         </div>
       </div>
     </div>
