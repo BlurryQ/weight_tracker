@@ -1,7 +1,7 @@
-import { DAY_NAMES, today as todayIso, weekCommencingLabel } from '../lib/dates'
+import { DAY_NAMES, fullDate, today as todayIso, weekCommencingLabel } from '../lib/dates'
 import { weeklyKcal } from '../lib/energy'
 import { formatWeekForClipboard } from '../lib/format'
-import { currentDir, phaseAt, signColor, weeklyAverages, type WeeklyAverage } from '../lib/math'
+import { currentDir, groupWeeksBySpan, phaseAt, signColor, weeklyAverages, type PhaseSpan, type WeeklyAverage } from '../lib/math'
 import { useApp } from '../store/AppContext'
 import { WeekRow } from '../components/history/WeekRow'
 
@@ -27,6 +27,28 @@ async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
+/** One section header per Cut/Bulk span — Deload/Maintain weeks fold into the enclosing span
+ * here (they still surface as their own tag on the individual WeekRow, via phaseAt below) rather
+ * than getting their own section, since they're one-week events, not spans of their own. */
+function GroupHeader({ span }: { span: PhaseSpan }) {
+  const color = span.dir === 'Cut' ? 'var(--cut)' : 'var(--bulk)'
+  return (
+    <div style={{ marginTop: 24, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flex: 'none' }} />
+      <span
+        style={{
+          font: '600 9.5px/1 "Barlow Condensed", sans-serif',
+          letterSpacing: '0.2em',
+          textTransform: 'uppercase',
+          color: 'var(--text-dim)',
+        }}
+      >
+        {span.dir} · since {fullDate(span.start)}
+      </span>
+    </div>
+  )
+}
+
 export function History() {
   const { state, dispatch } = useApp()
   const { entries, nutrition, phase, phaseLog, unit, openWeek, weeklyTarget } = state
@@ -35,7 +57,21 @@ export function History() {
   const weekly = weeklyAverages(entries)
   const kcalByMonday = new Map(weeklyKcal(nutrition).map((w) => [w.monday, w.kcal]))
   const dir = currentDir(phase, phaseLog)
-  const reversed = weekly.slice().reverse()
+
+  // Week-over-week deltas are computed on the ascending list first — the delta crosses group
+  // boundaries freely (a phase change doesn't reset "vs last week"), only the *display* order
+  // and grouping happen afterward.
+  const deltaByMonday = new Map<string, number | null>()
+  let prevWeek: WeeklyAverage | null = null
+  for (const week of weekly) {
+    deltaByMonday.set(week.monday, prevWeek ? week.lbs - prevWeek.lbs : null)
+    prevWeek = week
+  }
+
+  const groups = groupWeeksBySpan(weekly, phaseLog)
+    .slice()
+    .reverse()
+    .map((g) => ({ span: g.span, weeks: g.weeks.slice().reverse() }))
 
   async function copyWeek(week: WeeklyAverage, deltaLbs: number | null) {
     const text = formatWeekForClipboard({
@@ -72,37 +108,41 @@ export function History() {
         tap a week to open its days · tap a day to edit
       </div>
 
-      {reversed.map((week, i) => {
-        const prev = weekly[weekly.length - 1 - i - 1]
-        const deltaLbs = prev ? week.lbs - prev.lbs : null
-        const phaseAtWeek = phaseAt(week.monday, phaseLog)
-        // Grade each week's delta by the phase direction it actually happened in, not by
-        // whatever phase you're in today — a gain during a real Bulk week was the goal, and
-        // should read lime there even while looking at History mid-Cut.
-        const rowDir = phaseAtWeek.dir ?? dir
-        return (
-          <WeekRow
-            key={week.monday}
-            monday={week.monday}
-            weeklyLbs={week.lbs}
-            n={week.n}
-            deltaLbs={deltaLbs}
-            hasPrev={!!prev}
-            signColorOf={(v) => signColor(v, rowDir)}
-            phase={phaseAtWeek}
-            open={openWeek === week.monday}
-            onToggle={() => dispatch({ type: 'TOGGLE_WEEK', monday: week.monday })}
-            entries={entries}
-            weekKcal={kcalByMonday.get(week.monday) ?? null}
-            nutrition={nutrition}
-            unit={unit}
-            today={today}
-            dayNames={DAY_NAMES}
-            onEditDay={(date) => dispatch({ type: 'OPEN_SHEET', sheet: date })}
-            onCopy={() => copyWeek(week, deltaLbs)}
-          />
-        )
-      })}
+      {groups.map((group) => (
+        <div key={group.span?.start ?? 'pre-tracking'}>
+          {group.span && <GroupHeader span={group.span} />}
+          {group.weeks.map((week) => {
+            const deltaLbs = deltaByMonday.get(week.monday) ?? null
+            const phaseAtWeek = phaseAt(week.monday, phaseLog)
+            // Grade each week's delta by the phase direction it actually happened in, not by
+            // whatever phase you're in today — a gain during a real Bulk week was the goal, and
+            // should read lime there even while looking at History mid-Cut.
+            const rowDir = phaseAtWeek.dir ?? dir
+            return (
+              <WeekRow
+                key={week.monday}
+                monday={week.monday}
+                weeklyLbs={week.lbs}
+                n={week.n}
+                deltaLbs={deltaLbs}
+                hasPrev={deltaLbs != null}
+                signColorOf={(v) => signColor(v, rowDir)}
+                phase={phaseAtWeek}
+                open={openWeek === week.monday}
+                onToggle={() => dispatch({ type: 'TOGGLE_WEEK', monday: week.monday })}
+                entries={entries}
+                weekKcal={kcalByMonday.get(week.monday) ?? null}
+                nutrition={nutrition}
+                unit={unit}
+                today={today}
+                dayNames={DAY_NAMES}
+                onEditDay={(date) => dispatch({ type: 'OPEN_SHEET', sheet: date })}
+                onCopy={() => copyWeek(week, deltaLbs)}
+              />
+            )
+          })}
+        </div>
+      ))}
     </div>
   )
 }
