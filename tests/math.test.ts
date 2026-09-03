@@ -9,10 +9,16 @@ import {
   fitQualityLabel,
   fitSlope,
   foldedWeeks,
+  groupWeeksBySpan,
+  hasFoldedWeek,
   leastSquaresFit,
+  lastCompletedWeek,
   longestStreak,
+  paceLabel,
+  phaseAnchoredShowN,
   phaseAt,
   phaseSpans,
+  phaseTotal,
   projectionWeeks,
   signColor,
   solveByDate,
@@ -21,6 +27,7 @@ import {
   type Entry,
   type PhaseLogEntry,
 } from '../src/lib/math'
+import { addDays } from '../src/lib/dates'
 import { WEIGHT_DATA_FIXTURE } from './fixtures/weight-data'
 
 // The fixture's real-world "today" — frozen so results are deterministic and directly
@@ -348,6 +355,36 @@ describe('longestStreak', () => {
   })
 })
 
+describe('lastCompletedWeek', () => {
+  const weekly = [
+    { monday: '2026-08-03', lbs: 191, n: 7 },
+    { monday: '2026-08-10', lbs: 190, n: 7 },
+    { monday: '2026-08-17', lbs: 189, n: 7 },
+    { monday: '2026-08-24', lbs: 188.5, n: 3 }, // in progress — this is "today"'s own week
+  ]
+
+  it('excludes the current in-progress week even if it already has entries', () => {
+    const result = lastCompletedWeek(weekly, '2026-08-26') // Wednesday of the 24th's week
+    expect(result).toEqual({ monday: '2026-08-17', lbs: 189, deltaLbs: -1 })
+  })
+
+  it('uses the last item directly when the current week has no entries yet', () => {
+    const noCurrentWeekYet = weekly.slice(0, 3)
+    const result = lastCompletedWeek(noCurrentWeekYet, '2026-08-26')
+    expect(result).toEqual({ monday: '2026-08-17', lbs: 189, deltaLbs: -1 })
+  })
+
+  it('has no delta when there is only one completed week to show', () => {
+    const result = lastCompletedWeek(weekly.slice(0, 1), '2026-08-26')
+    expect(result).toEqual({ monday: '2026-08-03', lbs: 191, deltaLbs: null })
+  })
+
+  it('is null when there is no completed week at all', () => {
+    expect(lastCompletedWeek([], '2026-08-26')).toBeNull()
+    expect(lastCompletedWeek([{ monday: '2026-08-24', lbs: 188.5, n: 3 }], '2026-08-26')).toBeNull()
+  })
+})
+
 describe('completionRatio', () => {
   it('divides logged days by calendar days in the window', () => {
     const entries: Entry[] = [
@@ -389,6 +426,174 @@ describe('fitQualityLabel', () => {
     expect(fitQualityLabel(0.75)).toBe('Decent fit')
     expect(fitQualityLabel(0.5)).toBe('Noisy')
     expect(fitQualityLabel(0.2)).toBe('Very noisy')
+  })
+})
+
+describe('groupWeeksBySpan', () => {
+  it('folds a Deload week into the enclosing Cut span, not its own group', () => {
+    const weekly = [
+      { monday: '2026-04-20', lbs: 196, n: 7 },
+      { monday: '2026-04-27', lbs: 195, n: 7 },
+      { monday: '2026-07-27', lbs: 187, n: 7 }, // Deload week, still inside the Cut span
+      { monday: '2026-08-03', lbs: 186, n: 7 },
+    ]
+    const log: PhaseLogEntry[] = [
+      { start: '2026-04-20', name: 'Cut' },
+      { start: '2026-07-27', name: 'Deload' },
+    ]
+    const groups = groupWeeksBySpan(weekly, log)
+    expect(groups).toHaveLength(1)
+    expect(groups[0].span).toEqual({ dir: 'Cut', start: '2026-04-20' })
+    expect(groups[0].weeks).toHaveLength(4)
+  })
+
+  it('splits into separate groups on a real Cut/Bulk change', () => {
+    const weekly = [
+      { monday: '2026-01-05', lbs: 200, n: 7 },
+      { monday: '2026-04-20', lbs: 196, n: 7 },
+      { monday: '2026-04-27', lbs: 195, n: 7 },
+    ]
+    const log: PhaseLogEntry[] = [
+      { start: '2026-01-05', name: 'Bulk' },
+      { start: '2026-04-20', name: 'Cut' },
+    ]
+    const groups = groupWeeksBySpan(weekly, log)
+    expect(groups.map((g) => g.span?.dir)).toEqual(['Bulk', 'Cut'])
+    expect(groups[0].weeks).toHaveLength(1)
+    expect(groups[1].weeks).toHaveLength(2)
+  })
+
+  it('gives weeks before any phase history a null, unlabeled leading group', () => {
+    const weekly = [
+      { monday: '2025-10-06', lbs: 188, n: 7 },
+      { monday: '2026-01-05', lbs: 200, n: 7 },
+    ]
+    const log: PhaseLogEntry[] = [{ start: '2026-01-05', name: 'Bulk' }]
+    const groups = groupWeeksBySpan(weekly, log)
+    expect(groups[0].span).toBeNull()
+    expect(groups[0].weeks).toHaveLength(1)
+    expect(groups[1].span?.dir).toBe('Bulk')
+  })
+})
+
+describe('phaseAnchoredShowN', () => {
+  const weekly = Array.from({ length: 20 }, (_, i) => ({
+    monday: addDays('2026-04-20', i * 7),
+    lbs: 200 - i,
+    n: 7,
+  }))
+
+  it('phaseStart mode counts weeks since the current span started', () => {
+    const log: PhaseLogEntry[] = [{ start: '2026-04-20', name: 'Cut' }]
+    // 20 weeks of data, all inside the one Cut span starting at week 0 -> all 20 weeks.
+    expect(phaseAnchoredShowN(weekly, log, 'phaseStart')).toBe(20)
+  })
+
+  it('lastDeload mode counts weeks since the most recent Deload week', () => {
+    const log: PhaseLogEntry[] = [
+      { start: '2026-04-20', name: 'Cut' },
+      { start: addDays('2026-04-20', 10 * 7), name: 'Deload' }, // week index 10
+    ]
+    // last weekly monday is week index 19 -> 19-10+1 = 10 weeks since the deload.
+    expect(phaseAnchoredShowN(weekly, log, 'lastDeload')).toBe(10)
+  })
+
+  it('lastMaintain mode counts weeks since the most recent Maintain week', () => {
+    const log: PhaseLogEntry[] = [
+      { start: '2026-04-20', name: 'Cut' },
+      { start: addDays('2026-04-20', 15 * 7), name: 'Maintain' }, // week index 15
+    ]
+    // last weekly monday is week index 19 -> 19-15+1 = 5 weeks since the maintain week.
+    expect(phaseAnchoredShowN(weekly, log, 'lastMaintain')).toBe(5)
+  })
+
+  it('lastDeload and lastMaintain track independently — one logged does not satisfy the other', () => {
+    const log: PhaseLogEntry[] = [
+      { start: '2026-04-20', name: 'Cut' },
+      { start: addDays('2026-04-20', 10 * 7), name: 'Deload' },
+    ]
+    // No Maintain week logged at all -> lastMaintain falls back to the phase-start anchor (20),
+    // even though a Deload week exists.
+    expect(phaseAnchoredShowN(weekly, log, 'lastMaintain')).toBe(phaseAnchoredShowN(weekly, log, 'phaseStart'))
+  })
+
+  it('lastDeload falls back to the phase-start anchor when nothing has been logged yet', () => {
+    const log: PhaseLogEntry[] = [{ start: '2026-04-20', name: 'Cut' }]
+    expect(phaseAnchoredShowN(weekly, log, 'lastDeload')).toBe(phaseAnchoredShowN(weekly, log, 'phaseStart'))
+  })
+
+  it('floors at 3 weeks for a just-started phase', () => {
+    const log: PhaseLogEntry[] = [{ start: weekly[weekly.length - 1].monday, name: 'Cut' }]
+    expect(phaseAnchoredShowN(weekly, log, 'phaseStart')).toBe(3)
+  })
+
+  it('caps at however much history actually exists', () => {
+    const log: PhaseLogEntry[] = [{ start: '2000-01-03', name: 'Cut' }] // long before any data
+    expect(phaseAnchoredShowN(weekly, log, 'phaseStart')).toBe(weekly.length)
+  })
+})
+
+describe('hasFoldedWeek', () => {
+  it('is true only when that specific name has been logged', () => {
+    const log: PhaseLogEntry[] = [
+      { start: '2026-04-20', name: 'Cut' },
+      { start: '2026-06-01', name: 'Deload' },
+    ]
+    expect(hasFoldedWeek(log, 'Deload')).toBe(true)
+    expect(hasFoldedWeek(log, 'Maintain')).toBe(false)
+  })
+
+  it('is false for an empty log', () => {
+    expect(hasFoldedWeek([], 'Deload')).toBe(false)
+    expect(hasFoldedWeek([], 'Maintain')).toBe(false)
+  })
+})
+
+describe('phaseTotal', () => {
+  it('is the last weekly average minus the first, and the average of the week-to-week rate', () => {
+    const weeks = [
+      { monday: '2026-06-01', lbs: 200, n: 7 },
+      { monday: '2026-06-08', lbs: 198, n: 7 },
+      { monday: '2026-06-15', lbs: 195, n: 7 },
+    ]
+    const result = phaseTotal(weeks)
+    expect(result.changeLbs).toBe(-5)
+    expect(result.avgRateLbs).toBe(-2.5)
+  })
+
+  it('has no rate to give for fewer than 2 weeks', () => {
+    expect(phaseTotal([])).toEqual({ changeLbs: 0, avgRateLbs: 0 })
+    expect(phaseTotal([{ monday: '2026-06-01', lbs: 200, n: 7 }])).toEqual({ changeLbs: 0, avgRateLbs: 0 })
+  })
+})
+
+describe('paceLabel', () => {
+  it('reads "under target, still losing" when a Cut rate has not caught up to target', () => {
+    expect(paceLabel(-0.76, -1.0)).toBe('under target, still losing')
+  })
+
+  it('reads "on target" within the tolerance band', () => {
+    expect(paceLabel(-1.0, -1.0)).toBe('on target')
+    expect(paceLabel(-0.95, -1.0)).toBe('on target')
+  })
+
+  it('reads "over target" when losing faster than the Cut target', () => {
+    expect(paceLabel(-1.3, -1.0)).toBe('over target')
+  })
+
+  it('reads "under target, gaining" when the rate has reversed against a Cut target', () => {
+    expect(paceLabel(0.2, -1.0)).toBe('under target, gaining')
+  })
+
+  it('mirrors verbs for a Bulk target', () => {
+    expect(paceLabel(0.15, 0.3)).toBe('under target, still gaining')
+    expect(paceLabel(-0.1, 0.3)).toBe('under target, losing')
+  })
+
+  it('falls back to flat/gaining/losing for a near-zero (Maintain) target', () => {
+    expect(paceLabel(0.1, 0)).toBe('on target')
+    expect(paceLabel(0.6, 0)).toBe('gaining')
+    expect(paceLabel(-0.6, 0)).toBe('losing')
   })
 })
 

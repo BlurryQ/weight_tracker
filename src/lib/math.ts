@@ -335,3 +335,124 @@ export function longestStreak(entries: Entry[]): number {
   }
   return best
 }
+
+export interface LastWeekStat {
+  monday: string
+  lbs: number
+  /** vs the week before this one, or null if there's no earlier completed week to compare to. */
+  deltaLbs: number | null
+}
+
+/** The most recent *complete* ISO week's average — the current week in progress (if it already
+ * has entries) is excluded, so this never presents a partial week as if it were final. Today's
+ * Last Week stat uses this; the delta follows the same "compare to whatever completed week came
+ * before it" convention History already uses (a gap week with no entries is silently skipped,
+ * not treated as a zero). */
+export function lastCompletedWeek(weekly: WeeklyAverage[], today: string): LastWeekStat | null {
+  const currentMonday = mondayOf(today)
+  const completed = weekly.filter((w) => w.monday < currentMonday)
+  if (!completed.length) return null
+  const last = completed[completed.length - 1]
+  const prev = completed[completed.length - 2]
+  return { monday: last.monday, lbs: last.lbs, deltaLbs: prev ? last.lbs - prev.lbs : null }
+}
+
+// --- History phase grouping -----------------------------------------
+
+export interface WeekGroup {
+  /** null for weeks logged before any phase history exists — an unlabeled leading group. */
+  span: PhaseSpan | null
+  weeks: WeeklyAverage[]
+}
+
+/** Buckets ascending weekly averages into their `phaseSpans()` span (Cut/Bulk only — same
+ * folding rule as the chart bands: a Deload/Maintain week stays inside whichever Cut/Bulk
+ * section it falls in, it does not get its own group). Each week keeps its own identity inside
+ * the group — callers must still call `phaseAt()` per week for tags/colors, grouping is purely
+ * presentational. */
+export function groupWeeksBySpan(weekly: WeeklyAverage[], log: PhaseLogEntry[]): WeekGroup[] {
+  const spans = phaseSpans(log)
+  const groups: WeekGroup[] = []
+  for (const week of weekly) {
+    const span = spans.filter((s) => s.start <= week.monday).slice(-1)[0] ?? null
+    const lastGroup = groups[groups.length - 1]
+    const sameGroup = lastGroup && lastGroup.span?.start === span?.start && lastGroup.span?.dir === span?.dir
+    if (sameGroup) {
+      lastGroup.weeks.push(week)
+    } else {
+      groups.push({ span, weeks: [week] })
+    }
+  }
+  return groups
+}
+
+// --- Trends phase-anchored window ------------------------------------
+
+export type TrendWindowMode = 'weeks' | 'phaseStart' | 'lastDeload' | 'lastMaintain'
+
+export type PhaseAnchorMode = Exclude<TrendWindowMode, 'weeks'>
+
+/** Whether a `lastDeload`/`lastMaintain` anchor actually has a logged week to anchor to — the
+ * Trends anchor picker hides an anchor entirely (rather than showing a dead toggle) when this
+ * is false. */
+export function hasFoldedWeek(log: PhaseLogEntry[], name: 'Deload' | 'Maintain'): boolean {
+  return dedupePhaseLog(log).some((p) => p.name === name)
+}
+
+/** How many trailing weekly points to show when the window is anchored to a phase event instead
+ * of a fixed week count. Anchor = the current Cut/Bulk span's start (`phaseStart`), the most
+ * recent Deload week (`lastDeload`), or the most recent Maintain week (`lastMaintain`) — any of
+ * the latter two fall back to the phase-start anchor when none has been logged yet, avoiding an
+ * undefined window rather than a genuinely different anchor. Floored at 3 weeks (the chart
+ * already needs >=2 points to render at all) and capped at however much history actually
+ * exists. */
+export function phaseAnchoredShowN(weekly: WeeklyAverage[], log: PhaseLogEntry[], mode: PhaseAnchorMode): number {
+  if (!weekly.length) return 0
+  const spans = phaseSpans(log)
+  const phaseStartAnchor = spans.length ? spans[spans.length - 1].start : weekly[0].monday
+
+  let anchor = phaseStartAnchor
+  if (mode !== 'phaseStart') {
+    const foldedName = mode === 'lastDeload' ? 'Deload' : 'Maintain'
+    const folded = dedupePhaseLog(log)
+      .filter((p) => p.name === foldedName)
+      .map((p) => mondayOf(p.start))
+    if (folded.length) anchor = folded[folded.length - 1]
+  }
+
+  const lastMonday = weekly[weekly.length - 1].monday
+  const weeksSince = Math.floor(diffDays(mondayOf(anchor), lastMonday) / 7) + 1
+  return Math.max(3, Math.min(weekly.length, weeksSince))
+}
+
+export interface PhaseTotal {
+  changeLbs: number
+  avgRateLbs: number
+}
+
+/** Total weight change over a phase-span's shown weeks (last weekly average minus first — same
+ * basis as the Trends "Change" card) and the average weekly rate implied by it. Fewer than 2
+ * weeks has no rate to give. */
+export function phaseTotal(weeks: WeeklyAverage[]): PhaseTotal {
+  if (weeks.length < 2) return { changeLbs: 0, avgRateLbs: 0 }
+  const changeLbs = weeks[weeks.length - 1].lbs - weeks[0].lbs
+  return { changeLbs, avgRateLbs: changeLbs / (weeks.length - 1) }
+}
+
+/** A short phrase describing how the 4-week rate compares to the weekly target, for the Today
+ * rate bar. The verb ("losing"/"gaining") follows the sign of the rate itself, not the phase
+ * name, so it reads correctly under both a Cut and a Bulk target. A near-zero target (a genuine
+ * Maintain phase, not a folded week) has no magnitude to compare against, so it only reports
+ * flat/gaining/losing. */
+export function paceLabel(slopeLbs: number, weeklyTarget: number): string {
+  if (Math.abs(weeklyTarget) < 0.05) {
+    if (Math.abs(slopeLbs) < 0.35) return 'on target'
+    return slopeLbs > 0 ? 'gaining' : 'losing'
+  }
+  const verb = slopeLbs > 0 ? 'gaining' : slopeLbs < 0 ? 'losing' : 'flat'
+  if (Math.sign(slopeLbs) !== Math.sign(weeklyTarget)) return `under target, ${verb}`
+  const ratio = slopeLbs / weeklyTarget
+  if (ratio > 1.15) return 'over target'
+  if (ratio < 0.85) return `under target, still ${verb}`
+  return 'on target'
+}

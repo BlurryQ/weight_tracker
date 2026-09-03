@@ -90,6 +90,26 @@ describe('estimateMaintenance', () => {
     expect(est.windowDays).toBe(18)
     expect(est.calorieDays).toBe(19)
   })
+
+  it('reports the effective window start — the raw 28d start, or the phase clamp if later', () => {
+    const { entries, nutrition } = scenario(28, { start: 185, lbsPerWeek: -0.5, kcal: 2000 })
+
+    // No phase log: window starts a clean 27 days before TODAY.
+    const unclamped = estimateMaintenance(entries, nutrition, [], TODAY)
+    expect(unclamped.windowStart).toBe(addDays(TODAY, -27))
+
+    // Phase change mid-window: start is pulled forward to that span's Monday (Aug 10).
+    const clamped = estimateMaintenance(entries, nutrition, [
+      { start: '2026-06-01', name: 'Bulk' },
+      { start: '2026-08-15', name: 'Cut' },
+    ] as PhaseLogEntry[], TODAY)
+    expect(clamped.windowStart).toBe('2026-08-10')
+
+    // Still populated on the insufficient path (explains a short post-phase-change window).
+    const thin = estimateMaintenance(entries.slice(-3), nutrition.slice(-3), [], TODAY)
+    expect(thin.kind).toBe('insufficient')
+    expect(thin.windowStart).toBe(addDays(TODAY, -27))
+  })
 })
 
 describe('targetIntake / intakeAdjustment', () => {

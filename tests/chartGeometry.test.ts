@@ -47,6 +47,18 @@ describe('buildChartGeometry', () => {
     expect(geo.slope).toBeCloseTo(-0.9, 1) // the cut's rate, not a near-flat bulk+cut blend
   })
 
+  it('the fit slope/r2/fitWeeks are independent of fwd — only the drawn projection changes', () => {
+    // Trends' Reach card relies on exactly this: it needs the window's fit slope before it can
+    // know how many weeks to project forward, so it gets the slope from a throwaway fwd:0 pass
+    // and feeds the real fwd into a second pass — this only holds if fwd can't feed back into
+    // the fit itself.
+    const noProjection = buildChartGeometry(weekly, phaseSpans(PHASE_LOG), { ...TODAY_CFG, fwd: 0 })
+    const farProjection = buildChartGeometry(weekly, phaseSpans(PHASE_LOG), { ...TODAY_CFG, fwd: 52 })
+    expect(farProjection.slope).toBeCloseTo(noProjection.slope, 10)
+    expect(farProjection.r2).toBeCloseTo(noProjection.r2, 10)
+    expect(farProjection.fitWeeks).toBe(noProjection.fitWeeks)
+  })
+
   it('anchors the projection at the last actual point plus slope*weeks, not the fit intercept', () => {
     const geo = buildChartGeometry(weekly, [], TODAY_CFG)
     const lastActual = weekly[weekly.length - 1].lbs
@@ -120,6 +132,19 @@ describe('buildChartGeometry', () => {
   it('omits the target-pace reference line when no target rate is given', () => {
     const geo = buildChartGeometry(weekly, [], TODAY_CFG)
     expect(geo.targetProj).toBe('')
+    expect(geo.targetProjVal).toBe(0)
+    expect(geo.targetProjX).toBe(0)
+  })
+
+  it('exposes the target line forward endpoint value + column for the chart labels', () => {
+    const geo = buildChartGeometry(weekly, [], TODAY_CFG, undefined, [], -1.0)
+    // targetProjVal is the last actual weekly value carried forward at the target rate,
+    // in the same (display) units as projVal — a −1 lb/wk goal drops it fwd lb below `last`.
+    expect(geo.targetProjVal).toBeCloseTo(geo.last + -1.0 * TODAY_CFG.fwd, 6)
+    // Both forward lines terminate in the same x column.
+    expect(geo.targetProjX).toBe(geo.projX)
+    // The label strings the component renders match the exposed values.
+    expect(geo.targetProj.endsWith(` ${geo.targetProjY.toFixed(1)}`)).toBe(true)
   })
 
   it('draws the target-pace line from the same anchor as the real projection, diverging by the difference in slope', () => {

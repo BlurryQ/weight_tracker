@@ -1,18 +1,12 @@
 import { addDays, DAY_NAMES, weekCommencingLabel } from '../../lib/dates'
 import type { NutritionEntry } from '../../lib/energy'
-import { formatWeight, sgn, toDisplay } from '../../lib/format'
+import { formatKcal, formatWeight, sgn, toDisplay } from '../../lib/format'
 import type { Entry, PhaseAt, SignColor } from '../../lib/math'
 import type { Unit } from '../../store/types'
 
-/** '2,010' — thousands-separated, or '—' for no data. */
-function formatKcal(kcal: number | null | undefined): string {
-  if (kcal == null || !(kcal > 0)) return '—'
-  return Math.round(kcal).toLocaleString('en-US')
-}
-
 const SIGN_COLOR: Record<SignColor, string> = {
-  lime: 'var(--lime)',
-  red: 'var(--red)',
+  lime: 'var(--sign-good)', // +/- deltas stay green/red, independent of the accent hue
+  red: 'var(--sign-bad)',
   grey: 'var(--text-muted)',
 }
 
@@ -88,22 +82,25 @@ export function WeekRow({
         >
           {formatKcal(weekKcal)}
         </span>
-        {phase.dir && (
+        {/* The enclosing PhaseCard's header already states Cut/Bulk, so a folded one-week
+            Deload/Maintain event is the only thing worth tagging on the row itself — neutral,
+            same as Setup's own Deload/Maintain treatment, since a hold isn't a direction. */}
+        {(phase.raw === 'Deload' || phase.raw === 'Maintain') && (
           <span
             style={{
               font: '600 8.5px/1 "Barlow Condensed", sans-serif',
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
-              color: phase.dir === 'Bulk' ? 'var(--blue)' : 'oklch(0.7 0.12 128)',
+              color: 'var(--tag-neutral)',
             }}
           >
-            {phase.dir}
+            {phase.raw}
           </span>
         )}
         <span style={{ flex: 1, textAlign: 'right', font: '500 11.5px "IBM Plex Mono", monospace', color: hasPrev ? SIGN_COLOR[signColorOf(deltaLbs ?? 0)] : 'var(--text-muted)' }}>
           {hasPrev ? sgn(toDisplay(deltaLbs ?? 0, unit)) : '—'}
         </span>
-        <span style={{ font: '500 9px/1 "IBM Plex Mono", monospace', color: '#3f443e', width: 14, textAlign: 'right' }}>
+        <span style={{ font: '500 9px/1 "IBM Plex Mono", monospace', color: 'var(--text-disabled)', width: 14, textAlign: 'right' }}>
           {open ? '▾' : '▸'}
         </span>
       </button>
@@ -131,8 +128,8 @@ export function WeekRow({
                 font: '600 9.5px/1 "Barlow Condensed", sans-serif',
                 letterSpacing: '0.1em',
                 textTransform: 'uppercase',
-                color: '#0b0c0b',
-                background: 'var(--lime)',
+                color: 'var(--on-accent)',
+                background: 'var(--accent)',
                 padding: '5px 10px',
                 borderRadius: 999,
                 cursor: 'pointer',
@@ -152,7 +149,7 @@ export function WeekRow({
                 key={date}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0' }}
               >
-                <span style={{ width: 40, font: '500 13px "IBM Plex Mono", monospace', color: isToday ? 'var(--lime)' : 'var(--text-dim)' }}>
+                <span style={{ width: 40, font: '500 13px "IBM Plex Mono", monospace', color: isToday ? 'var(--accent)' : 'var(--text-dim)' }}>
                   {dn}
                 </span>
                 <span style={{ flex: 1, font: '500 13px "IBM Plex Mono", monospace', color: entry ? 'var(--text-secondary)' : 'var(--text-disabled)' }}>
@@ -167,7 +164,7 @@ export function WeekRow({
                     onClick={() => onEditDay(date)}
                     style={{
                       font: '500 11px "IBM Plex Mono", monospace',
-                      color: 'var(--lime)',
+                      color: 'var(--accent)',
                       opacity: 0.75,
                       cursor: 'pointer',
                       paddingRight: 10, // matches the Copy pill's own inset so the text lines up

@@ -5,7 +5,7 @@ const CIRCUMFERENCE = 188.5 // 2 * PI * r, r=30
 export function PaceRing({ status }: { status: PaceStatus }) {
   const fraction = Math.min(1, status.pct / 100)
   const dash = `${(fraction * CIRCUMFERENCE).toFixed(1)} 400`
-  const color = status.onPace ? 'var(--lime)' : 'var(--amber)'
+  const color = status.onPace ? 'var(--cyan)' : 'var(--amber)'
 
   return (
     <div style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>

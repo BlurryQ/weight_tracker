@@ -1,9 +1,8 @@
 # Weight Tracker
 
-A single-purpose weight tracking PWA for cut/bulk cycles. Log a weigh-in in one tap, judge
-progress by the 7-day rolling average (not the noisy daily number), see weekly averages plotted
-with a line of best fit, and ask "if this continues, when do I hit X?" in both directions — set a
-target weight and get a date, or set a date and get a projected weight.
+A single-purpose weight-tracking PWA for cut / bulk cycles. Log a weigh-in in one tap and judge
+progress by the 7-day rolling average, never the noisy daily number. Four screens, each with one
+job — where am I, what if, what happened, the rules — over an ink-black "Neon" theme.
 
 On Android it also reads your daily calories from MyFitnessPal (via Health Connect) and turns the
 weight trend plus intake into an adaptive-TDEE maintenance estimate and a calorie target for your
@@ -17,6 +16,23 @@ Ships as a web PWA and as a native Android app via Capacitor.
   <img src="docs/screenshots/history.png" width="220" alt="History screen" />
   <img src="docs/screenshots/setup.png" width="220" alt="Setup screen" />
 </p>
+
+## The four screens
+
+- **Today — where am I.** The 7-day average and week-over-week, a rate bar against your weekly
+  target, a Mon–Sun strip of this week's weigh-ins (today ringed), 14-day / rate / last-week
+  stats, a per-week change strip, and — on Android — the implied energy balance from the trend.
+- **Trends — what if.** The Reach card sits up top: set a target weight to get a date, or a date
+  to get a weight, and it drives the dashed projection on the chart below. Weekly averages with a
+  phase-scoped line of best fit; a window control (8W / 3M / 6M / ALL, or anchored to the current
+  phase / last deload / last maintenance) that also sets the projection's slope; and change,
+  fit-slope and R².
+- **History — what happened.** Weekly averages grouped into phase cards, each showing that phase's
+  total weight change and average rate, expandable to the individual days. Deload and maintenance
+  weeks are tagged in place.
+- **Setup — the rules.** Current phase (Cut / Bulk / Maintain) — changing it is staged behind a
+  confirm with an undo; one-tap Deload / Maintenance week markers that don't reset the phase;
+  weekly target and week counter; units; the Health Connect connection; and your data totals.
 
 ## Stack
 
@@ -44,7 +60,8 @@ src/
   screens/    Today, Trends, History, Setup
 tests/        vitest, run against a fixture of 317 real weigh-ins (tests/fixtures/weight-data.ts)
 supabase/
-  migrations/ 0001 schema (entries, phase_log, settings + RLS), 0004 daily_nutrition
+  migrations/ 0001 schema (entries, phase_log, settings + RLS), 0004 daily_nutrition,
+              0006-0007 Trends' phase-anchored window mode, 0008 drops dead columns
 android/      Capacitor-generated native project
 ```
 
@@ -64,7 +81,10 @@ boot with no entries (log a weigh-in to get started).
 
 Run the migrations in `supabase/migrations/` in order via the Supabase SQL Editor (or the
 Supabase CLI once you're linked to a project). `0001_init.sql` creates the core schema;
-`0004_nutrition.sql` adds the `daily_nutrition` table for the calories feature.
+`0004_nutrition.sql` adds the `daily_nutrition` table for the calories feature; `0006` and
+`0007_trend_window_mode_maintain.sql` add Trends' phase-anchored window mode (`weeks` /
+`phaseStart` / `lastDeload` / `lastMaintain`); `0008_drop_dead_columns.sql` drops two columns
+the app never ended up reading or writing (`settings.trend_horizon`, `daily_nutrition.source`).
 
 ### Other scripts
 

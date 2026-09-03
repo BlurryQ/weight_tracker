@@ -41,7 +41,11 @@ function Shell() {
             {state.screen === 'setup' && <Setup />}
           </div>
 
-          <Toast message={state.toast} onDismiss={() => dispatch({ type: 'CLEAR_TOAST' })} />
+          <Toast
+            message={state.toast}
+            onDismiss={() => dispatch({ type: 'CLEAR_TOAST' })}
+            onUndo={state.phaseUndo ? () => dispatch({ type: 'UNDO_PHASE_CHANGE' }) : undefined}
+          />
 
           <TabBar
             active={state.screen}

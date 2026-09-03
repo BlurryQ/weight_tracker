@@ -9,12 +9,12 @@ interface WeightChartProps {
   variant: 'today' | 'trends'
 }
 
-const CUT_FILL = 'oklch(0.82 0.17 128 / .05)'
-const CUT_EDGE = 'oklch(0.82 0.17 128 / .22)'
-const CUT_LABEL = 'oklch(0.7 0.12 128)'
-const BULK_FILL = 'oklch(0.76 0.13 235 / .07)'
-const BULK_EDGE = 'oklch(0.76 0.13 235 / .28)'
-const BULK_LABEL = 'oklch(0.76 0.13 235)'
+const CUT_FILL = 'var(--band-cut-fill)'
+const CUT_EDGE = 'var(--band-cut-edge)'
+const CUT_LABEL = 'var(--band-cut-label)'
+const BULK_FILL = 'var(--band-bulk-fill)'
+const BULK_EDGE = 'var(--band-bulk-edge)'
+const BULK_LABEL = 'var(--band-bulk-label)'
 
 /** Renders the weekly-average chart shared by Today (compact) and Trends (full). Geometry
  * comes from lib/chartGeometry.ts — this component only draws it, back to front: bands,
@@ -61,8 +61,8 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
           {line.value}
         </div>
       ))}
-      {/* The one label the chart needs — the trend line grows out of the data, so it names
-          itself; only the reference does not. Right-aligned to the chart edge. */}
+      {/* The goal-pace line is the one thing that needs naming — the trend line grows out of
+          the data. Right-aligned to the chart edge, just below its endpoint. */}
       {g.targetProj && (
         <div
           style={{
@@ -81,8 +81,8 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
       <svg width={W} height={H} style={{ overflow: 'visible', display: 'block' }}>
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--lime)" stopOpacity={isTrends ? 0.15 : 0.16} />
-            <stop offset="100%" stopColor="var(--lime)" stopOpacity={0} />
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity={isTrends ? 0.15 : 0.16} />
+            <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
           </linearGradient>
         </defs>
 
@@ -109,7 +109,7 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
         ))}
 
         {g.markers.map((x, i) => (
-          <line key={i} x1={x} x2={x} y1={0} y2={H} stroke="rgba(255,255,255,0.4)" strokeWidth={1} />
+          <line key={i} x1={x} x2={x} y1={0} y2={H} stroke="var(--band-marker)" strokeWidth={1} />
         ))}
 
         {g.grid.map((line, i) => (
@@ -119,49 +119,59 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
         <path d={g.area} fill={`url(#${gradId})`} stroke="none" />
 
         {/* Trend line, one object: a faint solid connector back into the data … */}
-        <path d={g.trendPast} fill="none" stroke="var(--lime)" strokeWidth={1.4} strokeLinecap="round" opacity={0.4} />
+        <path d={g.trendPast} fill="none" stroke="var(--accent)" strokeWidth={1.4} strokeLinecap="round" opacity={0.4} />
 
-        <path d={g.line} fill="none" stroke="var(--lime)" strokeWidth={2.1} strokeLinejoin="round" />
+        <path d={g.line} fill="none" stroke="var(--accent)" strokeWidth={2.1} strokeLinejoin="round" />
 
-        {/* … continued forward as the dashed projection. This is the headline line: full weight. */}
-        <path d={g.proj} fill="none" stroke="var(--lime)" strokeWidth={2} strokeDasharray="5 4" strokeLinecap="round" />
+        {/* … continued forward as the dashed projection. */}
+        <path
+          d={g.proj}
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth={1.8}
+          strokeDasharray="5 4"
+          strokeLinecap="round"
+          opacity={0.72}
+        />
 
-        {/* Target-rate reference: forward only, thinner and dimmer, with a terminal tick. */}
+        {/* Goal-pace reference: forward only, muted grey, still clearly below the cyan
+            projection — subordinate by colour and a sparser dash, not by near-invisibility.
+            The gap to the projection is the goal-vs-projected read. */}
         {g.targetProj && (
           <>
             <path
               d={g.targetProj}
               fill="none"
               stroke="var(--text-muted)"
-              strokeWidth={1.25}
-              strokeDasharray="1 5"
+              strokeWidth={1.4}
+              strokeDasharray="2 4"
               strokeLinecap="round"
-              opacity={0.5}
+              opacity={0.85}
             />
             <line
-              x1={g.projX}
-              x2={g.projX}
+              x1={g.targetProjX}
+              x2={g.targetProjX}
               y1={g.targetProjY - 4}
               y2={g.targetProjY + 4}
               stroke="var(--text-muted)"
-              strokeWidth={1.25}
-              opacity={0.6}
+              strokeWidth={1.4}
+              opacity={0.9}
             />
           </>
         )}
 
         {isTrends &&
           g.dots.map((d, i) => (
-            <circle key={i} cx={d.x} cy={d.y} r={2.4} fill="var(--bg)" stroke="var(--lime)" strokeWidth={1.2} />
+            <circle key={i} cx={d.x} cy={d.y} r={2.4} fill="var(--bg)" stroke="var(--accent)" strokeWidth={1.2} />
           ))}
 
-        <circle cx={g.lastX} cy={g.lastY} r={4.5} fill="var(--lime)" />
+        <circle cx={g.lastX} cy={g.lastY} r={4.5} fill="var(--accent)" />
         <circle
           cx={g.projX}
           cy={g.projY}
           r={3.5}
-          fill={isTrends ? 'var(--lime)' : 'var(--bg)'}
-          stroke="var(--lime)"
+          fill={isTrends ? 'var(--accent)' : 'var(--bg)'}
+          stroke="var(--accent)"
           strokeWidth={1.6}
         />
       </svg>
