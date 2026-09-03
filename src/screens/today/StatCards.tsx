@@ -50,13 +50,13 @@ export function StatCards({ a14, lastWeek, lastWeekDelta, lastWeekDeltaColor, ra
   return (
     <div style={{ display: 'flex', gap: 8 }}>
       <StatCard label="14 day" value={a14} />
+      <StatCard label="Rate/wk" value={sgn(toDisplay(rateLbs, unit))} color={SIGN_COLOR[rateColor]} />
       <StatCard
         label="Last week"
         value={lastWeek}
         note={lastWeekDelta}
         noteColor={lastWeekDeltaColor ? SIGN_COLOR[lastWeekDeltaColor] : undefined}
       />
-      <StatCard label="Rate/wk" value={sgn(toDisplay(rateLbs, unit))} color={SIGN_COLOR[rateColor]} />
     </div>
   )
 }

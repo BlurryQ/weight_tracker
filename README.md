@@ -1,9 +1,8 @@
 # Weight Tracker
 
-A single-purpose weight tracking PWA for cut/bulk cycles. Log a weigh-in in one tap, judge
-progress by the 7-day rolling average (not the noisy daily number), see weekly averages plotted
-with a line of best fit, and ask "if this continues, when do I hit X?" in both directions — set a
-target weight and get a date, or set a date and get a projected weight.
+A single-purpose weight-tracking PWA for cut / bulk cycles. Log a weigh-in in one tap and judge
+progress by the 7-day rolling average, never the noisy daily number. Four screens, each with one
+job — where am I, what if, what happened, the rules — over an ink-black "Neon" theme.
 
 On Android it also reads your daily calories from MyFitnessPal (via Health Connect) and turns the
 weight trend plus intake into an adaptive-TDEE maintenance estimate and a calorie target for your
@@ -17,6 +16,23 @@ Ships as a web PWA and as a native Android app via Capacitor.
   <img src="docs/screenshots/history.png" width="220" alt="History screen" />
   <img src="docs/screenshots/setup.png" width="220" alt="Setup screen" />
 </p>
+
+## The four screens
+
+- **Today — where am I.** The 7-day average and week-over-week, a rate bar against your weekly
+  target, a Mon–Sun strip of this week's weigh-ins (today ringed), 14-day / rate / last-week
+  stats, a per-week change strip, and — on Android — the implied energy balance from the trend.
+- **Trends — what if.** The Reach card sits up top: set a target weight to get a date, or a date
+  to get a weight, and it drives the dashed projection on the chart below. Weekly averages with a
+  phase-scoped line of best fit; a window control (8W / 3M / 6M / ALL, or anchored to the current
+  phase / last deload / last maintenance) that also sets the projection's slope; and change,
+  fit-slope and R².
+- **History — what happened.** Weekly averages grouped into phase cards, each showing that phase's
+  total weight change and average rate, expandable to the individual days. Deload and maintenance
+  weeks are tagged in place.
+- **Setup — the rules.** Current phase (Cut / Bulk / Maintain) — changing it is staged behind a
+  confirm with an undo; one-tap Deload / Maintenance week markers that don't reset the phase;
+  weekly target and week counter; units; the Health Connect connection; and your data totals.
 
 ## Stack
 
