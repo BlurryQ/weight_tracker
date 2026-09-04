@@ -256,10 +256,11 @@ export interface PaceStatus {
 }
 
 /** Whether the 4-week rate is keeping pace with the signed weekly target, and by how much.
- * A weeklyTarget of 0 (Maintain) is "on pace" when the rate is within +/-0.35 lbs/wk of flat;
- * otherwise on-pace means the rate has reached at least 75% of the signed target. */
+ * A near-zero weeklyTarget (Maintain — same <0.05 threshold as paceLabel) is "on pace" when the
+ * rate is within +/-0.35 lbs/wk of flat; otherwise on-pace means the rate has reached at least
+ * 75% of the signed target. */
 export function paceStatus(slopeLbs: number, weeklyTarget: number): PaceStatus {
-  if (weeklyTarget === 0) {
+  if (Math.abs(weeklyTarget) < 0.05) {
     const onPace = Math.abs(slopeLbs) < 0.35
     return { onPace, pct: onPace ? 100 : 60 }
   }

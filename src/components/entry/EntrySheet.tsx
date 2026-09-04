@@ -1,5 +1,5 @@
 import { dayLabel, today as todayIso } from '../../lib/dates'
-import { formatWeight, toLbs, unitLabel } from '../../lib/format'
+import { formatWeight, isPlausibleWeight, toLbs, unitLabel } from '../../lib/format'
 import { weeklyAverages } from '../../lib/math'
 import { useApp } from '../../store/AppContext'
 import { Keypad } from './Keypad'
@@ -40,6 +40,10 @@ export function EntrySheet() {
   function save() {
     const v = parseFloat(keypadValue)
     if (Number.isNaN(v)) return
+    if (!isPlausibleWeight(v, unit)) {
+      dispatch({ type: 'SHOW_TOAST', message: `That's outside a plausible bodyweight — check the number` })
+      return
+    }
     const lbs = toLbs(v, unit)
     if (isTarget) {
       dispatch({ type: 'SAVE_TARGET', value: lbs })
