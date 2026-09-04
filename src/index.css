@@ -9,13 +9,20 @@
 
 :root {
   /* ────────────────────────────────────────────────────────────
-     NEON — ink black + cyan, cyan-led (matches desired/ mockup).
-     Value flip on top of the token plumbing; layout untouched.
-       · cyan     = the single UI accent (was lime) AND Cut phase
-       · violet   = Bulk phase (moved off blue-235)
-       · magenta  = support only — Trends weekly-change bars, "against" direction
-       · green/red = +/- weigh-in deltas, unchanged
-       · amber    = off-pace, red = Deload/delete — unchanged
+     NEON — ink black, phase-driven accent (round 9).
+       · --accent tracks the current phase via [data-phase] on <html>
+         (stamped in App.tsx from state.phase) and cross-fades between
+         phases — see the @property/transition block below.
+       · cyan    = Cut phase (unchanged, was already the accent)
+       · magenta = Bulk phase (was violet) — also the fixed Bulk
+                   chart-band/tag colour. That one stays static, not
+                   tied to the live --accent: History shows every past
+                   Cut/Bulk span at once, so it can't react to "now".
+       · steel   = Maintain phase — calm, desaturated blue-grey; the
+                   UI deliberately downshifts while holding
+       · amber   = off-pace / "wrong direction" (was magenta — freed up
+                   so magenta reads unambiguously as "in a bulk")
+       · green/red = +/- weigh-in deltas, unchanged, never follow phase
      ──────────────────────────────────────────────────────────── */
 
   /* Surfaces — ink black, faint cool cast (was a faint warm/green one). */
@@ -38,24 +45,30 @@
   --text-dim: #616269;
   --text-disabled: #3b3c43;
 
-  /* Accent — cyan. The single "act on this / headline" colour: FAB,
-     active pills, links, chart data line + area, streak, pace ring.
-     --accent-text is a touch lighter for cyan-on-ink text runs. */
+  /* Accent — the single "act on this / headline" colour: FAB, active
+     pills, links, chart data line + area, streak, pace ring, phase chip.
+     Defaults to Cut/cyan; [data-phase="bulk"|"maintain"] below redefine
+     these four so the whole app cross-fades to the other phases.
+     --accent-text is a touch lighter for accent-on-ink text runs. */
   --accent: oklch(0.82 0.14 200);
   --accent-hover: oklch(0.88 0.13 200);
   --accent-text: oklch(0.86 0.11 200);
   --accent-glow: oklch(0.82 0.14 200 / 0.35); /* FAB drop-shadow */
-  --on-accent: #0a0b0c; /* dark text/glyphs on an accent fill — cyan is bright, ~11:1 */
+  --on-accent: #0a0b0c; /* dark text/glyphs on an accent fill — all three phases clear AAA */
 
   /* Was the secondary accent; now folds into the primary. Kept so the
      on-pace ring / streak tokens still resolve. */
   --cyan: var(--accent);
   --cyan-text: var(--accent-text);
 
-  /* Phase / status. */
+  /* Phase / status — fixed per phase, independent of the live --accent
+     above. History shows every past Cut/Bulk span at once, so its
+     colours can't be "whatever phase is current"; Setup's phase-card
+     grid needs each card's own colour (including the one you're not
+     on) regardless of which phase is actually live. */
   --cut: oklch(0.82 0.14 200); /* Cut phase — cyan, same family as the accent */
-  --bulk: oklch(0.7 0.13 280); /* Bulk phase — violet, was blue 235 */
-  --bulk-text: oklch(0.78 0.12 280); /* Bulk chip label on Today */
+  --bulk: oklch(0.72 0.17 350); /* Bulk phase — magenta, was violet */
+  --maintain: oklch(0.74 0.05 250); /* Maintain phase — steel */
   --amber: oklch(0.8 0.15 78); /* off-pace — unchanged */
   --red: oklch(0.68 0.16 25); /* Deload / destructive / delete — unchanged */
 
@@ -64,12 +77,14 @@
   --sign-good: oklch(0.8 0.15 138);
   --sign-bad: oklch(0.68 0.16 25);
 
-  /* Chart phase bands — drawn behind the cyan data line. */
+  /* Chart phase bands — drawn behind the accent data line. Cut band is
+     fixed per the design brief; Bulk band re-derives from --bulk now
+     that it's magenta. */
   --band-cut-fill: oklch(0.82 0.14 200 / 0.05);
   --band-cut-edge: oklch(0.82 0.14 200 / 0.2);
   --band-cut-label: color-mix(in oklch, var(--cut), var(--text-dim) 40%);
-  --band-bulk-fill: oklch(0.7 0.13 280 / 0.1);
-  --band-bulk-edge: oklch(0.7 0.13 280 / 0.34);
+  --band-bulk-fill: oklch(0.72 0.17 350 / 0.1);
+  --band-bulk-edge: oklch(0.72 0.17 350 / 0.34);
   --band-bulk-label: color-mix(in oklch, var(--bulk), var(--text-dim) 22%);
   --band-marker: rgba(255, 255, 255, 0.35); /* phase-change divider */
 
@@ -80,15 +95,14 @@
   --phase-tag-bulk: var(--bulk);
   --tag-neutral: color-mix(in oklch, var(--text-muted), var(--text-primary) 20%);
 
-  /* Trends weekly-change bars: cyan when the week moved the right way for
-     the phase, magenta against. Magenta's job now that the goal-pace line
-     is grey. */
+  /* Trends weekly-change bars: on-pace vs off-pace. Amber for "against"
+     now that magenta means Bulk — same move as the Today rate-bar phrase
+     below, so magenta is never read as "wrong direction" any more. */
   --wchange-good: var(--accent);
-  --wchange-against: oklch(0.7 0.19 350);
+  --wchange-against: var(--amber);
 
-  /* Today rate-bar status phrase: magenta when off pace (same "not going
-     the way you want" idea as --wchange-against), a neutral --text-* colour
-     when on pace. */
+  /* Today rate-bar status phrase: amber when off pace (was magenta —
+     see --wchange-against above), a neutral --text-* colour when on pace. */
   --pace-off: var(--wchange-against);
 
   /* Back-compat aliases for literals not yet repointed. */
@@ -102,6 +116,83 @@
   --font-mono: 'IBM Plex Mono', monospace;
 
   color-scheme: dark;
+}
+
+/* Registering these as <color> is what lets the transition below actually
+   interpolate frame-by-frame (in Oklab) instead of snapping — anything
+   built from var(--accent) (color-mix, box-shadow, …) animates along with
+   it for free, no JS driving values. Falls back to an instant cut on a
+   browser without @property support. */
+@property --accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: oklch(0.82 0.14 200);
+}
+@property --accent-hover {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: oklch(0.88 0.13 200);
+}
+@property --accent-text {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: oklch(0.86 0.11 200);
+}
+@property --accent-glow {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: oklch(0.82 0.14 200 / 0.35);
+}
+
+:root {
+  transition:
+    --accent 420ms ease,
+    --accent-hover 420ms ease,
+    --accent-text 420ms ease,
+    --accent-glow 420ms ease;
+}
+
+/* Phase-driven accent — [data-phase] is stamped on <html> from state.phase
+   (App.tsx). Bulk/Maintain redefine the four accent tokens; Cut needs no
+   block of its own since it's already the :root default above. */
+:root[data-phase='bulk'] {
+  --accent: oklch(0.72 0.17 350);
+  --accent-hover: oklch(0.8 0.16 350);
+  --accent-text: oklch(0.8 0.14 350);
+  --accent-glow: oklch(0.72 0.17 350 / 0.35);
+}
+:root[data-phase='maintain'] {
+  --accent: oklch(0.74 0.05 250);
+  --accent-hover: oklch(0.8 0.046 250);
+  --accent-text: oklch(0.78 0.04 250);
+  --accent-glow: oklch(0.74 0.05 250 / 0.35);
+}
+
+/* One-shot brightness sweep across .accent-el elements right after a
+   committed phase change (App.tsx fires it once the cross-fade above has
+   landed) — never runs under reduced motion. */
+@keyframes accent-shimmer {
+  0% {
+    filter: none;
+  }
+  42% {
+    filter: brightness(1.75) saturate(1.12);
+  }
+  100% {
+    filter: none;
+  }
+}
+.accent-el.accent-shimmer {
+  animation: accent-shimmer 300ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    transition: none;
+  }
+  .accent-el.accent-shimmer {
+    animation: none;
+  }
 }
 
 * {

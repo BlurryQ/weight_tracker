@@ -15,8 +15,8 @@ export function RateBar({ slopeLbs, weeklyTarget, unit }: { slopeLbs: number; we
   const status = paceStatus(slopeLbs, weeklyTarget)
   const label = paceLabel(slopeLbs, weeklyTarget)
   const fillPct = (Math.max(0, Math.min(TRACK_MAX_PCT, status.pct)) / TRACK_MAX_PCT) * 100
-  // State-driven, not string-matched: off pace gets the magenta "not going the way you want"
-  // token (same idea as the Trends weekly-change bars' --wchange-against), on pace stays neutral.
+  // State-driven, not string-matched: off pace gets the amber "not going the way you want" token
+  // (same idea as the Trends weekly-change bars' --wchange-against), on pace stays neutral.
   const labelColor = status.onPace ? 'var(--text-secondary)' : 'var(--pace-off)'
 
   return (
@@ -37,6 +37,7 @@ export function RateBar({ slopeLbs, weeklyTarget, unit }: { slopeLbs: number; we
 
       <div style={{ marginTop: 8, position: 'relative', height: 8, borderRadius: 999, background: 'var(--raised)' }}>
         <div
+          className="accent-el"
           style={{
             position: 'absolute',
             inset: 0,

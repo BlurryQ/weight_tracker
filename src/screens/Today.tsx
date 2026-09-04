@@ -11,19 +11,14 @@ import { WeeklyChangeBars } from './today/WeeklyChangeBars'
 
 const SIGN_COLOR = { lime: 'var(--sign-good)', red: 'var(--sign-bad)', grey: 'var(--text-muted)' } as const
 
+// The phase chip reads the live --accent (cross-fades with everything else on a phase change),
+// not the Cut/Bulk chart-direction tokens — a genuine standing Maintain phase should chip steel,
+// not whichever Cut/Bulk band it folds into on the chart.
 const CHIP_COLORS = {
-  Cut: {
-    bg: 'color-mix(in oklch, var(--cut) 13%, transparent)',
-    border: 'color-mix(in oklch, var(--cut) 30%, transparent)',
-    dot: 'var(--cut)',
-    text: 'var(--accent-text)',
-  },
-  Bulk: {
-    bg: 'color-mix(in oklch, var(--bulk) 14%, transparent)',
-    border: 'color-mix(in oklch, var(--bulk) 35%, transparent)',
-    dot: 'var(--bulk)',
-    text: 'var(--bulk-text)',
-  },
+  bg: 'color-mix(in oklch, var(--accent) 13%, transparent)',
+  border: 'color-mix(in oklch, var(--accent) 30%, transparent)',
+  dot: 'var(--accent)',
+  text: 'var(--accent-text)',
 }
 
 export function Today() {
@@ -68,7 +63,6 @@ export function Today() {
   const lastWeek = lastCompletedWeek(weekly, today)
 
   const phaseWeek = Math.floor(diffDays(mondayOf(phaseStart), today) / 7) + 1
-  const chipColors = CHIP_COLORS[dir]
   const streak = currentStreak(entries, today)
 
   return (
@@ -76,17 +70,18 @@ export function Today() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Chip
           label={`${phase} · week ${phaseWeek}`}
-          bg={chipColors.bg}
-          border={chipColors.border}
-          dotColor={chipColors.dot}
-          textColor={chipColors.text}
+          bg={CHIP_COLORS.bg}
+          border={CHIP_COLORS.border}
+          dotColor={CHIP_COLORS.dot}
+          textColor={CHIP_COLORS.text}
           onClick={() => dispatch({ type: 'SET_SCREEN', screen: 'setup' })}
+          className="accent-el"
         />
         <span style={{ font: '500 11px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>{shortDate(today)}</span>
       </div>
 
       <div style={{ marginTop: 8, font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
-        <span style={{ color: 'var(--accent-text)', fontWeight: 600 }}>{streak}</span> day{streak === 1 ? '' : 's'} streak
+        <span className="accent-el" style={{ color: 'var(--accent-text)', fontWeight: 600 }}>{streak}</span> day{streak === 1 ? '' : 's'} streak
       </div>
 
       <div style={{ marginTop: 16 }}>
@@ -153,6 +148,7 @@ export function Today() {
       <button
         type="button"
         onClick={() => dispatch({ type: 'SET_SCREEN', screen: 'trends' })}
+        className="accent-el"
         style={{
           marginTop: 12,
           marginBottom: 8,

@@ -18,6 +18,17 @@ const PHASES: { name: PhaseName; hint: string }[] = [
   { name: 'Maintain', hint: 'hold steady' },
 ]
 
+// Each card reads its OWN phase's colour — not the live --accent — so a staged card previews the
+// colour it's about to become before that's actually true, and the currently-selected card doesn't
+// wobble mid-cross-fade if a different card gets tapped and cancelled. Deload never appears in
+// PHASES above; its entry here is unreachable, just satisfying the PhaseName index.
+const PHASE_COLOR: Record<PhaseName, string> = {
+  Cut: 'var(--cut)',
+  Bulk: 'var(--bulk)',
+  Maintain: 'var(--maintain)',
+  Deload: 'var(--cut)',
+}
+
 function sectionLabel(text: string) {
   return (
     <div
@@ -102,25 +113,27 @@ export function Setup() {
           {PHASES.map((p) => {
             const selected = phase === p.name
             const pending = pendingPhase === p.name
+            const color = PHASE_COLOR[p.name]
             return (
               <button
                 key={p.name}
                 type="button"
                 onClick={() => dispatch({ type: 'STAGE_PHASE', phase: p.name })}
+                className={selected || pending ? 'accent-el' : undefined}
                 style={{
                   position: 'relative',
                   cursor: 'pointer',
                   padding: '13px 14px',
                   borderRadius: 14,
                   background: selected
-                    ? 'color-mix(in oklch, var(--accent) 12%, transparent)'
+                    ? `color-mix(in oklch, ${color} 12%, transparent)`
                     : pending
                       ? 'transparent'
                       : 'var(--surface)',
                   border: selected
-                    ? '1.5px solid var(--accent)'
+                    ? `1.5px solid ${color}`
                     : pending
-                      ? '1.5px dashed var(--accent)'
+                      ? `1.5px dashed ${color}`
                       : '1.5px solid var(--surface)',
                   textAlign: 'left',
                 }}
@@ -134,7 +147,7 @@ export function Setup() {
                       font: '700 7px/1 "Barlow Condensed", sans-serif',
                       letterSpacing: '0.1em',
                       textTransform: 'uppercase',
-                      color: 'var(--accent)',
+                      color,
                     }}
                   >
                     pending
@@ -145,7 +158,7 @@ export function Setup() {
                     font: '700 16px/1.2 "Barlow Condensed", sans-serif',
                     letterSpacing: '0.06em',
                     textTransform: 'uppercase',
-                    color: selected ? 'var(--accent-text)' : pending ? 'var(--accent)' : 'var(--text-secondary)',
+                    color: selected || pending ? color : 'var(--text-secondary)',
                   }}
                 >
                   {p.name}
@@ -173,7 +186,7 @@ export function Setup() {
               cursor: 'pointer',
               padding: '12px 15px',
               borderRadius: 14,
-              background: 'var(--accent)',
+              background: PHASE_COLOR[pendingPhase],
               color: 'var(--on-accent)',
               font: '700 12px/1 "Barlow Condensed", sans-serif',
               letterSpacing: '0.14em',
@@ -219,7 +232,7 @@ export function Setup() {
       <div style={{ marginTop: 20, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
         {sectionLabel('Weekly target')}
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ font: '700 25px/1 "Barlow Condensed", sans-serif', color: 'var(--accent)' }}>
+          <span className="accent-el" style={{ font: '700 25px/1 "Barlow Condensed", sans-serif', color: 'var(--accent)' }}>
             {sgn(toDisplay(weeklyTarget, unit), 2)} {unitLabel(unit)}/wk
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
@@ -284,6 +297,7 @@ export function Setup() {
                   type="button"
                   onClick={connectCalories}
                   disabled={calories === 'connecting'}
+                  className="accent-el"
                   style={{
                     marginLeft: 'auto',
                     cursor: 'pointer',

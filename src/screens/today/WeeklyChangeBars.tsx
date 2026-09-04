@@ -1,8 +1,8 @@
 import { signColor, type Direction, type SignColor, type WeeklyAverage } from '../../lib/math'
 
-// Cyan when the week moved the right way for the phase, magenta against — distinct from the
-// generic lime/red sign colours used elsewhere (StatCards, WeekRow deltas), since these bars are
-// specifically the Neon forecast palette's cyan/magenta hierarchy, not the plain good/bad read.
+// The live accent when the week moved the right way for the phase, amber against — distinct from
+// the generic lime/red sign colours used elsewhere (StatCards, WeekRow deltas), since these bars
+// specifically track "on pace for this phase", not the plain good/bad read.
 const SIGN_COLOR: Record<SignColor, string> = {
   lime: 'var(--wchange-good)',
   red: 'var(--wchange-against)',

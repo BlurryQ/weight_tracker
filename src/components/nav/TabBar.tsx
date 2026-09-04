@@ -46,6 +46,7 @@ export function TabBar({ active, onSelect, onFab }: TabBarProps) {
               }}
             >
               <span
+                className={isActive ? 'accent-el' : undefined}
                 style={{
                   width: 16,
                   height: 3,

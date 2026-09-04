@@ -5,14 +5,16 @@ interface ChipProps {
   border: string
   label: string
   onClick?: () => void
+  className?: string
 }
 
 /** The phase chip on the Today screen ('Cut · week 4'), tappable to navigate to Setup. */
-export function Chip({ dotColor, textColor, bg, border, label, onClick }: ChipProps) {
+export function Chip({ dotColor, textColor, bg, border, label, onClick, className }: ChipProps) {
   return (
     <button
       type="button"
       onClick={onClick}
+      className={className}
       style={{
         display: 'inline-flex',
         alignItems: 'center',

@@ -4,6 +4,7 @@ export function Fab({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       aria-label="Log today's weight"
+      className="accent-el"
       style={{
         width: 54,
         height: 54,

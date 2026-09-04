@@ -116,15 +116,16 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
           <line key={i} x1={0} x2={W} y1={line.y} y2={line.y} stroke="var(--hairline-strong)" strokeWidth={1} />
         ))}
 
-        <path d={g.area} fill={`url(#${gradId})`} stroke="none" />
+        <path className="accent-el" d={g.area} fill={`url(#${gradId})`} stroke="none" />
 
         {/* Trend line, one object: a faint solid connector back into the data … */}
-        <path d={g.trendPast} fill="none" stroke="var(--accent)" strokeWidth={1.4} strokeLinecap="round" opacity={0.4} />
+        <path className="accent-el" d={g.trendPast} fill="none" stroke="var(--accent)" strokeWidth={1.4} strokeLinecap="round" opacity={0.4} />
 
-        <path d={g.line} fill="none" stroke="var(--accent)" strokeWidth={2.1} strokeLinejoin="round" />
+        <path className="accent-el" d={g.line} fill="none" stroke="var(--accent)" strokeWidth={2.1} strokeLinejoin="round" />
 
         {/* … continued forward as the dashed projection. */}
         <path
+          className="accent-el"
           d={g.proj}
           fill="none"
           stroke="var(--accent)"
@@ -162,11 +163,12 @@ export function WeightChart({ geometry: g, W, H, gutter, variant }: WeightChartP
 
         {isTrends &&
           g.dots.map((d, i) => (
-            <circle key={i} cx={d.x} cy={d.y} r={2.4} fill="var(--bg)" stroke="var(--accent)" strokeWidth={1.2} />
+            <circle className="accent-el" key={i} cx={d.x} cy={d.y} r={2.4} fill="var(--bg)" stroke="var(--accent)" strokeWidth={1.2} />
           ))}
 
-        <circle cx={g.lastX} cy={g.lastY} r={4.5} fill="var(--accent)" />
+        <circle className="accent-el" cx={g.lastX} cy={g.lastY} r={4.5} fill="var(--accent)" />
         <circle
+          className="accent-el"
           cx={g.projX}
           cy={g.projY}
           r={3.5}

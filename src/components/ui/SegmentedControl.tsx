@@ -37,6 +37,7 @@ export function SegmentedControl<T extends string | number>({ options, value, on
             key={String(opt.value)}
             type="button"
             onClick={() => onChange(opt.value)}
+            className={active ? 'accent-el' : undefined}
             style={{
               flex: 1,
               padding: scale.padding,

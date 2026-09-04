@@ -23,6 +23,7 @@ export function DayStrip({ entries, today, unit }: DayStripProps) {
         return (
           <div
             key={date}
+            className={isToday ? 'accent-el' : undefined}
             style={{
               flex: 1,
               display: 'flex',
