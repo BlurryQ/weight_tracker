@@ -10,8 +10,15 @@ weekly goal.
 
 Ships as a web PWA and as a native Android app via Capacitor.
 
+The accent follows your current phase — cyan cutting, magenta bulking, a calmer steel while
+holding — cross-fading on a phase change with a one-shot shimmer across the coloured chrome.
+
 <p align="center">
-  <img src="docs/screenshots/today.png" width="220" alt="Today screen" />
+  <img src="docs/screenshots/today-cut.png" width="220" alt="Today screen, Cut phase" />
+  <img src="docs/screenshots/today-bulk.png" width="220" alt="Today screen, Bulk phase" />
+  <img src="docs/screenshots/today-maintain.png" width="220" alt="Today screen, Maintain phase" />
+</p>
+<p align="center">
   <img src="docs/screenshots/trends.png" width="220" alt="Trends screen" />
   <img src="docs/screenshots/history.png" width="220" alt="History screen" />
   <img src="docs/screenshots/setup.png" width="220" alt="Setup screen" />
@@ -31,8 +38,9 @@ Ships as a web PWA and as a native Android app via Capacitor.
   total weight change and average rate, expandable to the individual days. Deload and maintenance
   weeks are tagged in place.
 - **Setup — the rules.** Current phase (Cut / Bulk / Maintain) — changing it is staged behind a
-  confirm with an undo; one-tap Deload / Maintenance week markers that don't reset the phase;
-  weekly target and week counter; units; the Health Connect connection; and your data totals.
+  confirm with an undo, and commits by cross-fading the app's accent to match; one-tap Deload /
+  Maintenance week markers that don't reset the phase; weekly target and week counter; units; the
+  Health Connect connection; and your data totals.
 
 ## Stack
 
