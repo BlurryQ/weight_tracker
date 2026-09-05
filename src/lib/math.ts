@@ -457,3 +457,125 @@ export function paceLabel(slopeLbs: number, weeklyTarget: number): string {
   if (ratio < 0.85) return `under target, still ${verb}`
   return 'on target'
 }
+
+// --- Plateau / stall detection (Lab #7) ----------------------------------
+//
+// Pure trend-shape check: is the recent weekly slope flat *and* is the person actually trying
+// to move (a real deficit/surplus on paper)? No calorie model of its own — the caller passes in
+// an already-computed maintenance estimate and the recent mean intake. Raw numbers only; the
+// "N non-overlapping weeks before it counts" persistence layer is deliberately not built here.
+
+/** Noise floor for "the scale isn't moving", as a fraction of bodyweight per week. 0.1%/wk —
+ * ~0.13 lb/wk at 130 lb, ~0.25 lb/wk at 250 lb — so a light and a heavy person aren't held to
+ * the same absolute lb figure. Exposed as an adjustable parameter on the Lab module. */
+export const DEFAULT_STALL_THRESHOLD_PCT = 0.001
+
+/** Minimum gap between mean logged intake and estimated maintenance (kcal/day) for the diet to
+ * count as "active" — below this the person reads as intentionally maintaining, and a flat scale
+ * is expected rather than a stall. */
+export const ACTIVE_DIET_KCAL = 150
+
+/** Whether logged intake sits far enough from maintenance to call it a real deficit or surplus
+ * "on paper" — the guard that stops a deliberate maintainer being flagged as stalled. Either
+ * input missing (no usable estimate yet) counts as *not* actively dieting. */
+export function wasActivelyDieting(
+  avgIntake: number | null,
+  maintenance: number | null,
+  minGapKcal = ACTIVE_DIET_KCAL,
+): boolean {
+  if (avgIntake == null || maintenance == null) return false
+  return Math.abs(avgIntake - maintenance) >= minGapKcal
+}
+
+export interface PlateauInputs {
+  /** Ascending weekly trend averages, from `weeklyAverages`. */
+  weekly: WeeklyAverage[]
+  /** Mean daily logged calories over the recent window, or null if too sparse to use. */
+  avgIntake: number | null
+  /** Current maintenance (TDEE) estimate to compare intake against, or null when unavailable. */
+  maintenance: number | null
+  /** Bodyweight (lbs) the stall threshold scales to — typically the latest weekly average. */
+  bodyWeightLbs: number
+  /** How many trailing weekly averages form the "recent" window; the same count immediately
+   * before it forms the "prior" window. Default 2 (≈ the last 14 days vs. days 15–28 ago). */
+  windowWeeks?: number
+  /** Override for `DEFAULT_STALL_THRESHOLD_PCT` (Lab tuning knob). */
+  stallThresholdPct?: number
+  /** Override for `ACTIVE_DIET_KCAL`. */
+  activeDietKcal?: number
+}
+
+export interface PlateauResult {
+  kind: 'ok' | 'insufficient'
+  /** lb/week over the recent window (last `windowWeeks` weekly averages). Null when insufficient. */
+  recentRate: number | null
+  /** lb/week over the window immediately before that. Null when insufficient. */
+  priorRate: number | null
+  /** Absolute lb/week noise floor actually used = |bodyWeightLbs · stallThresholdPct|. */
+  stallThreshold: number
+  stallThresholdPct: number
+  /** |recentRate| < stallThreshold — the "scale isn't moving" half. Null when insufficient. */
+  rateIsFlat: boolean | null
+  /** `wasActivelyDieting(avgIntake, maintenance)` — the "actually in a deficit/surplus" half. */
+  activelyDieting: boolean | null
+  /** avgIntake − maintenance (negative = deficit). Null when either input is missing. */
+  intakeGap: number | null
+  /** rateIsFlat && activelyDieting. Null when insufficient. */
+  stalled: boolean | null
+  note: string
+}
+
+/** Flags a stall only when the recent weekly slope is inside the bodyweight-scaled noise floor
+ * *and* logged intake implies a genuine deficit/surplus — a flat scale on maintenance-level
+ * intake is intentional, not a plateau, and must not flag. */
+export function detectPlateau(inputs: PlateauInputs): PlateauResult {
+  const { weekly, avgIntake, maintenance, bodyWeightLbs } = inputs
+  const windowWeeks = inputs.windowWeeks ?? 2
+  const stallThresholdPct = inputs.stallThresholdPct ?? DEFAULT_STALL_THRESHOLD_PCT
+  const activeDietKcal = inputs.activeDietKcal ?? ACTIVE_DIET_KCAL
+  const stallThreshold = Math.abs(bodyWeightLbs * stallThresholdPct)
+
+  const base = {
+    recentRate: null,
+    priorRate: null,
+    stallThreshold,
+    stallThresholdPct,
+    rateIsFlat: null,
+    activelyDieting: null,
+    intakeGap: null,
+    stalled: null,
+  }
+
+  if (weekly.length < windowWeeks * 2) {
+    return {
+      ...base,
+      kind: 'insufficient' as const,
+      note: `Need ${windowWeeks * 2}+ weekly averages — have ${weekly.length}.`,
+    }
+  }
+
+  const recentRate = fitSlope(weekly, windowWeeks).slope
+  const priorRate = fitSlope(weekly.slice(0, weekly.length - windowWeeks), windowWeeks).slope
+
+  const rateIsFlat = Math.abs(recentRate) < stallThreshold
+  const intakeGap = avgIntake != null && maintenance != null ? avgIntake - maintenance : null
+  const activelyDieting = wasActivelyDieting(avgIntake, maintenance, activeDietKcal)
+  const stalled = rateIsFlat && activelyDieting
+
+  return {
+    kind: 'ok',
+    recentRate,
+    priorRate,
+    stallThreshold,
+    stallThresholdPct,
+    rateIsFlat,
+    activelyDieting,
+    intakeGap,
+    stalled,
+    note: stalled
+      ? 'Scale flat while intake implies a real deficit/surplus — reads as a stall.'
+      : rateIsFlat
+        ? 'Scale flat, but intake is near maintenance — reads as intentional.'
+        : 'Scale still moving.',
+  }
+}

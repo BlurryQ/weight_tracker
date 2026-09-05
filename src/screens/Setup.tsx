@@ -341,7 +341,7 @@ export function Setup() {
         </div>
       </div>
 
-      <div style={{ marginTop: 10, marginBottom: 20, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
+      <div style={{ marginTop: 10, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
         {sectionLabel('Data')}
         <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
           <DataStat label="Weigh-ins" value={String(entries.length)} />
@@ -354,6 +354,42 @@ export function Setup() {
           Synced to Supabase when online, cached locally otherwise.
         </div>
       </div>
+
+      {/* Lab — a staging screen for analytics still being validated. Reached only from here, not
+          the bottom nav, so it stays out of the everyday four-screen loop. */}
+      <button
+        type="button"
+        onClick={() => dispatch({ type: 'SET_SCREEN', screen: 'lab' })}
+        style={{
+          marginTop: 10,
+          marginBottom: 20,
+          width: '100%',
+          cursor: 'pointer',
+          padding: '13px 15px',
+          borderRadius: 14,
+          border: '1px solid var(--surface)',
+          background: 'var(--surface)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          textAlign: 'left',
+        }}
+      >
+        <span
+          style={{
+            font: '700 12px/1 "Barlow Condensed", sans-serif',
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          Open Lab
+        </span>
+        <span style={{ font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+          experimental analytics
+        </span>
+        <span style={{ marginLeft: 'auto', font: '500 13px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>→</span>
+      </button>
     </div>
   )
 }

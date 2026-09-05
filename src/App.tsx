@@ -8,6 +8,7 @@ import { Today } from './screens/Today'
 import { Trends } from './screens/Trends'
 import { History } from './screens/History'
 import { Setup } from './screens/Setup'
+import { Lab } from './screens/Lab'
 import { today as todayIso } from './lib/dates'
 
 function Shell() {
@@ -89,6 +90,7 @@ function Shell() {
             {state.screen === 'trends' && <Trends />}
             {state.screen === 'history' && <History />}
             {state.screen === 'setup' && <Setup />}
+            {state.screen === 'lab' && <Lab />}
           </div>
 
           <Toast
