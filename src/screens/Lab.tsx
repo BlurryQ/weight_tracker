@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 import { useApp } from '../store/AppContext'
+import { AdherenceModule } from './lab/AdherenceModule'
+import { MaintenanceTrendModule } from './lab/MaintenanceTrendModule'
 import { PlateauModule } from './lab/PlateauModule'
 
 // The Lab screen — a staging area for analytics that aren't ready to graduate to their real
@@ -10,30 +12,29 @@ import { PlateauModule } from './lab/PlateauModule'
 const COND = '"Barlow Condensed", sans-serif'
 const MONO = '"IBM Plex Mono", monospace'
 
-function Slot({ n, title, children }: { n: string; title: string; children: ReactNode }) {
+/** One module card. Slot 7's header is drawn here; slots 6 and 8 use `bare` because
+ * AdherenceModule / MaintenanceTrendModule each carry their own matching number+title header
+ * internally (per Energy Lab's brief) — a shared header row here would double it. */
+function Slot({ n, title, bare, children }: { n?: string; title?: string; bare?: boolean; children: ReactNode }) {
   return (
     <section style={{ marginTop: 14, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ font: `700 20px/1 ${COND}`, color: 'var(--accent)' }}>{n}</span>
-        <span
-          style={{
-            font: `600 9.5px/1 ${COND}`,
-            letterSpacing: '0.2em',
-            textTransform: 'uppercase',
-            color: 'var(--text-dim)',
-          }}
-        >
-          {title}
-        </span>
-      </div>
-      <div style={{ marginTop: 12 }}>{children}</div>
+      {!bare && (
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span style={{ font: `700 15px/1 ${COND}`, color: 'var(--accent)' }}>{n}</span>
+          <span
+            style={{
+              font: `600 9px/1 ${COND}`,
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase',
+              color: 'var(--text-dim)',
+            }}
+          >
+            {title}
+          </span>
+        </div>
+      )}
+      <div style={bare ? undefined : { marginTop: 12 }}>{children}</div>
     </section>
-  )
-}
-
-function Pending() {
-  return (
-    <div style={{ font: `500 11px/1.6 ${MONO}`, color: 'var(--text-muted)' }}>Energy Lab module — pending</div>
   )
 }
 
@@ -75,16 +76,16 @@ export function Lab() {
         Today or Trends.
       </div>
 
-      <Slot n="6" title="Logging accuracy">
-        <Pending />
+      <Slot bare>
+        <AdherenceModule />
       </Slot>
 
       <Slot n="7" title="Plateau detection">
         <PlateauModule />
       </Slot>
 
-      <Slot n="8" title="Metabolic adaptation">
-        <Pending />
+      <Slot bare>
+        <MaintenanceTrendModule />
       </Slot>
     </div>
   )
