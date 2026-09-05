@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { diffDays, shortDate, today as todayIso } from '../../lib/dates'
+import { diffDays, mondayOf, today as todayIso, weekCommencingLabel } from '../../lib/dates'
 import {
   ESTIMATE_WINDOW_DAYS,
   MAINTENANCE_HISTORY_STEP_DAYS,
@@ -185,7 +185,7 @@ export function MaintenanceTrendModule() {
             </div>
           </div>
 
-          <SeriesChart points={points} today={today} />
+          <SeriesChart points={points} today={mondayOf(today)} />
         </>
       )}
 
@@ -194,7 +194,7 @@ export function MaintenanceTrendModule() {
         <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: 'auto auto 1fr', gap: '3px 12px', font: `500 10px/1.5 ${MONO}` }}>
           {points.map((p) => (
             <div key={p.date} style={{ display: 'contents' }}>
-              <span style={{ color: 'var(--text-dim)' }}>{shortDate(p.date)}</span>
+              <span style={{ color: 'var(--text-dim)' }}>{weekCommencingLabel(p.date)}</span>
               <span style={{ color: p.maintenance == null ? 'var(--text-muted)' : 'var(--text-secondary)', textAlign: 'right' }}>
                 {p.maintenance == null ? '—' : `${p.maintenance}`}
               </span>

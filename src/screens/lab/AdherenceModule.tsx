@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { shortDate, today as todayIso } from '../../lib/dates'
+import { dayLabel, shortDate, today as todayIso, weekCommencingLabel } from '../../lib/dates'
 import { sgn } from '../../lib/format'
 import { computeAdherence, type AdherenceCalc, type AdherenceLive } from '../../lib/energy'
 import { weeklyAverages } from '../../lib/math'
@@ -80,8 +80,7 @@ function CalcCard({ tag, live, calc }: { tag: string; live: boolean; calc: Adher
       </div>
 
       <div style={{ marginTop: 8, font: `500 9.5px/1.6 ${MONO}`, color: 'var(--text-dim)' }}>
-        ref maint <span style={{ color: 'var(--text-secondary)' }}>{Math.round(ref.maintenance)}</span> @ {shortDate(ref.date)}
-        {ref.windowStart ? ` (from ${shortDate(ref.windowStart)})` : ''}
+        ref maint <span style={{ color: 'var(--text-secondary)' }}>{Math.round(ref.maintenance)}</span> @ {weekCommencingLabel(ref.date)}
         {'  ·  '}intake <span style={{ color: 'var(--text-secondary)' }}>{Math.round(calc.avgLoggedIntake)}</span>
         {'  ·  '}{calc.kcalPerLb}/lb
       </div>
@@ -184,7 +183,8 @@ export function AdherenceModule() {
       <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--divider)', font: `500 10px/1.7 ${MONO}`, color: 'var(--text-dim)' }}>
         {label('Current window')}
         <div style={{ marginTop: 6 }}>
-          {shortDate(res.currentEst.windowStart)}→{shortDate(today)} · <span style={{ color: 'var(--text-secondary)' }}>{res.currentEst.kind}</span>
+          {dayLabel(res.currentEst.windowStart)} → {dayLabel(today)} <span style={{ color: 'var(--text-muted)' }}>(rolling, not week-aligned)</span>
+          {'  ·  '}<span style={{ color: 'var(--text-secondary)' }}>{res.currentEst.kind}</span>
           {'  ·  '}maint{' '}
           <span style={{ color: 'var(--text-secondary)' }}>
             {res.currentEst.maintenance != null ? res.currentEst.maintenance : '—'}

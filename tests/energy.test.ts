@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addDays } from '../src/lib/dates'
+import { addDays, diffDays, mondayOf } from '../src/lib/dates'
 import {
   computeAdherence,
   computeMaintenanceHistory,
@@ -166,22 +166,23 @@ function buildHistory(startLbs: number, segs: Seg[], endDate = TODAY) {
   return { entries, nutrition }
 }
 
+const isMonday = (iso: string) => mondayOf(iso) === iso
+
 describe('computeMaintenanceHistory (#8 rolling series)', () => {
-  it('rolls estimateMaintenance every stepDays over a trailing window, oldest first', () => {
+  it('rolls estimateMaintenance on the ISO-Monday grid, oldest first', () => {
     const { entries, nutrition } = buildHistory(190, [{ days: 84, lbsPerWeek: -0.5, kcal: 2000 }])
     const h = computeMaintenanceHistory(entries, nutrition, [], TODAY)
 
     expect(h.stepDays).toBe(14)
     expect(h.windowDays).toBe(28)
-    expect(h.points.map((p) => p.date)).toEqual([
-      addDays(TODAY, -56),
-      addDays(TODAY, -42),
-      addDays(TODAY, -28),
-      addDays(TODAY, -14),
-      TODAY,
-    ])
-    // Every window sees clean, fully-logged data -> all gated, all the same number.
-    expect(h.gated).toHaveLength(5)
+    // Every window ends on a Monday, 14 days (2 weeks) apart, the last one being this week's.
+    expect(h.points.every((p) => isMonday(p.date))).toBe(true)
+    expect(h.points[h.points.length - 1].date).toBe(mondayOf(TODAY))
+    for (let i = 1; i < h.points.length; i++) {
+      expect(diffDays(h.points[i - 1].date, h.points[i].date)).toBe(14)
+    }
+    // Clean, fully-logged data -> all gated, all the same number.
+    expect(h.points).toHaveLength(5)
     expect(h.points.every((p) => p.kind === 'ok')).toBe(true)
     expect(h.points.every((p) => p.maintenance === 2250)).toBe(true)
   })
@@ -198,7 +199,8 @@ describe('computeMaintenanceHistory (#8 rolling series)', () => {
     const h = computeMaintenanceHistory(entries, nutrition, [], TODAY)
     expect(h.points).toHaveLength(5)
     expect(h.points.map((p) => p.kind)).toEqual(['insufficient', 'insufficient', 'ok', 'ok', 'ok'])
-    expect(h.gated.map((p) => p.date)).toEqual([addDays(TODAY, -28), addDays(TODAY, -14), TODAY])
+    expect(h.gated).toEqual(h.points.slice(2))
+    expect(h.gated.every((p) => isMonday(p.date))).toBe(true)
   })
 })
 
@@ -215,18 +217,21 @@ describe('findNearestGatedWindow (#6 walk-back)', () => {
 
     expect(ref).not.toBeNull()
     expect(ref!.estimate.kind).toBe('ok')
-    // Walked back past the entire 30-day lapse — not the immediately-prior window.
-    expect(ref!.date).toBe(addDays(TODAY, -44))
+    // Candidate window-ends sit on the Monday grid, strictly before the current window start.
+    expect(isMonday(ref!.date)).toBe(true)
+    expect(ref!.date < currentStart).toBe(true)
+    // Walked back past the entire 30-day lapse — well beyond the immediately-prior week.
+    expect(diffDays(ref!.date, TODAY)).toBeGreaterThan(40)
     expect(ref!.estimate.maintenance).toBe(2250)
 
-    // Same history with the gap closed up: the nearest gated window is the one that ends the
-    // day before the current window starts.
+    // Same history with the gap closed up: the nearest gated window ends on the last Monday
+    // before the current window starts.
     const noGap = buildHistory(200, [
       { days: 45, lbsPerWeek: -0.5, kcal: 2000 },
       { days: 28, lbsPerWeek: -2.0, kcal: 2500 },
     ])
     const near = findNearestGatedWindow(noGap.entries, noGap.nutrition, [], currentStart)
-    expect(near!.date).toBe(addDays(TODAY, -28))
+    expect(near!.date).toBe(mondayOf(addDays(currentStart, -1)))
   })
 
   it('returns null on a first-ever eligible window (no gated prior window anywhere)', () => {

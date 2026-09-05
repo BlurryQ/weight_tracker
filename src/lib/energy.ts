@@ -207,9 +207,12 @@ export function weeklyKcal(nutrition: NutritionEntry[]): WeeklyKcal[] {
 export const MAINTENANCE_HISTORY_STEP_DAYS = 14
 
 export interface MaintenancePoint {
-  /** Window-end date — the `today` handed to estimateMaintenance for this step. */
+  /** Window-end date — an ISO Monday, the `today` handed to estimateMaintenance for this step.
+   * Anchored to the same Monday grid weeklyAverages()/History use, so a series row lines up 1:1
+   * with a History week rather than floating a few days off it. */
   date: string
-  /** ISO date the window actually starts on (phase clamp can make it shorter than `windowDays`). */
+  /** ISO date the window actually starts on (phase clamp can make it shorter than `windowDays`).
+   * Not a week boundary — a `windowDays`-long span ending on `date`. */
   windowStart: string
   /** estimateMaintenance's verdict for this window. */
   kind: MaintenanceKind
@@ -235,8 +238,11 @@ export interface MaintenanceHistory {
 
 /** Feature #8 — no new formula: call estimateMaintenance() on a rolling basis (every `stepDays`,
  * over a trailing `windowDays` window) and collect the series. No new persistence — recomputed
- * live from entries/nutrition/phaseLog the same way weeklyAverages() is. Points run from the
- * first date that can hold a full window through `today`, with `today` itself always the last. */
+ * live from entries/nutrition/phaseLog the same way weeklyAverages() is.
+ *
+ * Every window ends on an ISO Monday (the step is snapped to whole weeks), so the series shares
+ * History's week grid and the two can be read side by side. Points run from the first Monday
+ * whose trailing window can hold data through the Monday of `today`. */
 export function computeMaintenanceHistory(
   entries: Entry[],
   nutrition: NutritionEntry[],
@@ -245,20 +251,18 @@ export function computeMaintenanceHistory(
   stepDays = MAINTENANCE_HISTORY_STEP_DAYS,
   windowDays = ESTIMATE_WINDOW_DAYS,
 ): MaintenanceHistory {
-  const step = Math.max(1, Math.round(stepDays))
+  const weekStep = Math.max(7, Math.round(stepDays / 7) * 7)
   const dates: string[] = []
 
+  const lastMonday = mondayOf(today)
   const known = [...entries.map((e) => e.date), ...nutrition.map((n) => n.date)].filter((d) => d <= today)
   if (known.length) {
     const first = known.reduce((min, d) => (d < min ? d : min), today)
-    let cursor = addDays(first, windowDays - 1)
-    if (cursor > today) cursor = today
-    while (cursor < today) {
-      dates.push(cursor)
-      cursor = addDays(cursor, step)
-    }
+    let startMonday = mondayOf(addDays(first, windowDays - 1))
+    if (startMonday > lastMonday) startMonday = lastMonday
+    for (let d = startMonday; d < lastMonday; d = addDays(d, weekStep)) dates.push(d)
   }
-  dates.push(today)
+  dates.push(lastMonday)
 
   const points: MaintenancePoint[] = dates.map((d) => {
     const est = estimateMaintenance(entries, nutrition, phaseLog, d, windowDays)
@@ -273,7 +277,7 @@ export function computeMaintenanceHistory(
     }
   })
 
-  return { points, gated: points.filter((p) => p.kind === 'ok'), stepDays: step, windowDays }
+  return { points, gated: points.filter((p) => p.kind === 'ok'), stepDays: weekStep, windowDays }
 }
 
 // --- #6 · logging accuracy / adherence check ------------------------
@@ -288,16 +292,17 @@ export function phaseKcalPerLb(phaseLog: PhaseLogEntry[], today: string, observe
   return gaining ? KCAL_PER_LB_GAIN : KCAL_PER_LB_LOSS
 }
 
-/** Walk backwards from just before `beforeDate` for the nearest window whose estimateMaintenance()
- * comes back gated (`kind === 'ok'`). Windows that land `insufficient` or `unreliable` are
- * skipped outright — they never serve as a reference and don't count as "the prior window", so a
- * lapse in the middle of history is stepped straight over. Returns null when no gated window
- * exists anywhere earlier (the correct state on a first-ever eligible window, and again whenever
- * a lapse breaks the chain).
+/** Walk backwards a week at a time from the ISO Monday before `beforeDate` for the nearest
+ * window whose estimateMaintenance() comes back gated (`kind === 'ok'`). Windows that land
+ * `insufficient` or `unreliable` are skipped outright — they never serve as a reference and
+ * don't count as "the prior window", so a lapse in the middle of history is stepped straight
+ * over. Returns null when no gated window exists anywhere earlier (the correct state on a
+ * first-ever eligible window, and again whenever a lapse breaks the chain).
  *
- * The match is always strictly earlier than `beforeDate`, so when `beforeDate` is the current
- * evaluation window's start the reference window is fully disjoint from it — that disjointness is
- * exactly what stops predictedRate collapsing into estimateMaintenance's own identity. */
+ * Candidate window-ends sit on the same Monday grid as History and the #8 series. The match is
+ * always strictly earlier than `beforeDate`, so when `beforeDate` is the current evaluation
+ * window's start the reference window is fully disjoint from it — that disjointness is exactly
+ * what stops predictedRate collapsing into estimateMaintenance's own identity. */
 export function findNearestGatedWindow(
   entries: Entry[],
   nutrition: NutritionEntry[],
@@ -309,9 +314,11 @@ export function findNearestGatedWindow(
   if (!known.length) return null
   const earliest = known.reduce((min, d) => (d < min ? d : min), beforeDate)
   // A window ending earlier than this can't hold the minimum calorie days, so stop there.
-  const floor = addDays(earliest, MIN_CALORIE_DAYS - 1)
+  const floor = mondayOf(addDays(earliest, MIN_CALORIE_DAYS - 1))
 
-  for (let d = addDays(beforeDate, -1); d >= floor; d = addDays(d, -1)) {
+  let d = mondayOf(beforeDate)
+  if (d >= beforeDate) d = addDays(d, -7) // keep the reference strictly earlier than the window
+  for (; d >= floor; d = addDays(d, -7)) {
     const est = estimateMaintenance(entries, nutrition, phaseLog, d, windowDays)
     if (est.kind === 'ok') return { date: d, estimate: est }
   }
