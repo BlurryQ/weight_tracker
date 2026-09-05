@@ -1,5 +1,13 @@
 import { addDays, diffDays, mondayOf } from './dates'
-import { fitQualityLabel, leastSquaresFit, phaseSpans, type Entry, type PhaseLogEntry } from './math'
+import {
+  fitQualityLabel,
+  fitSlope,
+  leastSquaresFit,
+  phaseSpans,
+  type Entry,
+  type PhaseLogEntry,
+  type WeeklyAverage,
+} from './math'
 
 /** Energy equivalent of body **fat** — the tissue a cut mostly strips. 3500 kcal/lb
  * (≈ 7700 kcal/kg), the standard energy-balance constant. */
@@ -189,4 +197,289 @@ export function weeklyKcal(nutrition: NutritionEntry[]): WeeklyKcal[] {
   return [...groups.entries()]
     .map(([monday, xs]) => ({ monday, kcal: Math.round(mean(xs)), n: xs.length }))
     .sort((a, b) => (a.monday < b.monday ? -1 : 1))
+}
+
+// --- #8 · metabolic adaptation: rolling maintenance series -----------
+
+/** Default cadence for the rolling series — a fresh 28-day window every ~2 weeks, so
+ * consecutive windows overlap ~50%. The user's note: this is the parameter that "needs the most
+ * care on window choice", so both this and the window length are surfaced as Lab tunables. */
+export const MAINTENANCE_HISTORY_STEP_DAYS = 14
+
+export interface MaintenancePoint {
+  /** Window-end date — the `today` handed to estimateMaintenance for this step. */
+  date: string
+  /** ISO date the window actually starts on (phase clamp can make it shorter than `windowDays`). */
+  windowStart: string
+  /** estimateMaintenance's verdict for this window. */
+  kind: MaintenanceKind
+  /** Maintenance estimate (kcal/day); null when the window came back `insufficient`. */
+  maintenance: number | null
+  /** Mean logged intake across the window (kcal/day); null when insufficient. */
+  meanIntake: number | null
+  /** Modelled weight change (lbs) across the window. */
+  weightChangeLbs: number | null
+  /** R² of the window's weight fit. */
+  r2: number
+}
+
+export interface MaintenanceHistory {
+  /** Every computed window, oldest first — including non-gated ones (drawn dimmed on the chart). */
+  points: MaintenancePoint[]
+  /** Just the gated (`kind === 'ok'`) points, oldest first. This is the series adherence calc 2
+   * references. */
+  gated: MaintenancePoint[]
+  stepDays: number
+  windowDays: number
+}
+
+/** Feature #8 — no new formula: call estimateMaintenance() on a rolling basis (every `stepDays`,
+ * over a trailing `windowDays` window) and collect the series. No new persistence — recomputed
+ * live from entries/nutrition/phaseLog the same way weeklyAverages() is. Points run from the
+ * first date that can hold a full window through `today`, with `today` itself always the last. */
+export function computeMaintenanceHistory(
+  entries: Entry[],
+  nutrition: NutritionEntry[],
+  phaseLog: PhaseLogEntry[],
+  today: string,
+  stepDays = MAINTENANCE_HISTORY_STEP_DAYS,
+  windowDays = ESTIMATE_WINDOW_DAYS,
+): MaintenanceHistory {
+  const step = Math.max(1, Math.round(stepDays))
+  const dates: string[] = []
+
+  const known = [...entries.map((e) => e.date), ...nutrition.map((n) => n.date)].filter((d) => d <= today)
+  if (known.length) {
+    const first = known.reduce((min, d) => (d < min ? d : min), today)
+    let cursor = addDays(first, windowDays - 1)
+    if (cursor > today) cursor = today
+    while (cursor < today) {
+      dates.push(cursor)
+      cursor = addDays(cursor, step)
+    }
+  }
+  dates.push(today)
+
+  const points: MaintenancePoint[] = dates.map((d) => {
+    const est = estimateMaintenance(entries, nutrition, phaseLog, d, windowDays)
+    return {
+      date: d,
+      windowStart: est.windowStart,
+      kind: est.kind,
+      maintenance: est.maintenance,
+      meanIntake: est.meanIntake,
+      weightChangeLbs: est.weightChangeLbs,
+      r2: est.r2,
+    }
+  })
+
+  return { points, gated: points.filter((p) => p.kind === 'ok'), stepDays: step, windowDays }
+}
+
+// --- #6 · logging accuracy / adherence check ------------------------
+
+/** The weight-density constant estimateMaintenance would pick for a window ending `today`:
+ * gain density on a logged Bulk span, loss density otherwise; with no phase history at all it
+ * falls back to the sign of `observedChange`. Mirrors estimateMaintenance's own `kcalPerLb`
+ * choice so adherence's predicted rate speaks the same units as the estimate it references. */
+export function phaseKcalPerLb(phaseLog: PhaseLogEntry[], today: string, observedChange = 0): number {
+  const lastSpan = phaseSpans(phaseLog).filter((s) => s.start <= today).slice(-1)[0]
+  const gaining = lastSpan ? lastSpan.dir === 'Bulk' : observedChange > 0
+  return gaining ? KCAL_PER_LB_GAIN : KCAL_PER_LB_LOSS
+}
+
+/** Walk backwards from just before `beforeDate` for the nearest window whose estimateMaintenance()
+ * comes back gated (`kind === 'ok'`). Windows that land `insufficient` or `unreliable` are
+ * skipped outright — they never serve as a reference and don't count as "the prior window", so a
+ * lapse in the middle of history is stepped straight over. Returns null when no gated window
+ * exists anywhere earlier (the correct state on a first-ever eligible window, and again whenever
+ * a lapse breaks the chain).
+ *
+ * The match is always strictly earlier than `beforeDate`, so when `beforeDate` is the current
+ * evaluation window's start the reference window is fully disjoint from it — that disjointness is
+ * exactly what stops predictedRate collapsing into estimateMaintenance's own identity. */
+export function findNearestGatedWindow(
+  entries: Entry[],
+  nutrition: NutritionEntry[],
+  phaseLog: PhaseLogEntry[],
+  beforeDate: string,
+  windowDays = ESTIMATE_WINDOW_DAYS,
+): { date: string; estimate: MaintenanceEstimate } | null {
+  const known = [...entries.map((e) => e.date), ...nutrition.map((n) => n.date)].filter((d) => d < beforeDate)
+  if (!known.length) return null
+  const earliest = known.reduce((min, d) => (d < min ? d : min), beforeDate)
+  // A window ending earlier than this can't hold the minimum calorie days, so stop there.
+  const floor = addDays(earliest, MIN_CALORIE_DAYS - 1)
+
+  for (let d = addDays(beforeDate, -1); d >= floor; d = addDays(d, -1)) {
+    const est = estimateMaintenance(entries, nutrition, phaseLog, d, windowDays)
+    if (est.kind === 'ok') return { date: d, estimate: est }
+  }
+  return null
+}
+
+export type AdherenceLive = 'calc1' | 'calc2'
+
+export interface AdherenceReference {
+  /** Where the reference maintenance came from. */
+  source: 'nearest-gated-window' | 'maintenance-series'
+  /** Reference maintenance (kcal/day) — never drawn from the window being evaluated. */
+  maintenance: number
+  /** Window-end date the reference was taken at. */
+  date: string
+  /** Reference window's start date (calc 1 only). */
+  windowStart?: string
+}
+
+export interface AdherenceCalc {
+  reference: AdherenceReference
+  /** Mean logged intake across the current evaluation window (kcal/day). */
+  avgLoggedIntake: number
+  /** Phase-keyed density (3500 loss / 3100 gain), same rule estimateMaintenance uses. */
+  kcalPerLb: number
+  /** Rate the logged intake implies against the reference maintenance (lb/week). */
+  predictedRate: number
+  /** Rate the actual weight trend is moving at (lb/week), from fitSlope over the trend window. */
+  actualRate: number
+  /** actualRate − predictedRate. ≈0 = the log explains the trend; away from 0 = it doesn't. */
+  divergence: number
+}
+
+export interface AdherenceHistoryPoint {
+  /** Window-end date. */
+  date: string
+  predictedRate: number
+  actualRate: number
+  divergence: number
+}
+
+export interface AdherenceResult {
+  /** False === "not enough data": neither calc applies (no gated prior window anywhere yet, or
+   * the current window itself isn't gated). */
+  applicable: boolean
+  /** Which calc the production selection rule surfaces — calc2 when available, else calc1, else
+   * null. Lab tags this one "LIVE". */
+  live: AdherenceLive | null
+  /** Calc 1 (noisier) — reference = nearest previously-gated raw window. Null when none exists. */
+  calc1: AdherenceCalc | null
+  /** Calc 2 (tighter) — reference = the #8 rolling series' gated point nearest the current
+   * window's start. Null when the series has < 2 gated points (then calc1 is the fallback). */
+  calc2: AdherenceCalc | null
+  /** The current evaluation window's own estimate — both calcs require this to be gated. */
+  currentEst: MaintenanceEstimate
+  /** Per-window divergence across the recent rolling windows, oldest first — lets the
+   * "is this divergence persistent?" question be read by eye, no threshold layer baked in. */
+  divergenceHistory: AdherenceHistoryPoint[]
+  note: string
+}
+
+/** Feature #6 — logged intake implies a weight-change rate; compare it to the measured trend
+ * rate. `predictedRate = (avgLoggedIntake − referenceMaintenance) / kcalPerLb · 7`, and
+ * `divergence = actualRate − predictedRate`.
+ *
+ * The reference maintenance must never come from the window being evaluated: substitute
+ * estimateMaintenance's own formula back in and predictedRate cancels to actualRate exactly, so
+ * divergence would read ≈0 no matter the real adherence. Two disjoint reference sources instead,
+ * both computed here so Lab can show them side by side:
+ *  - calc1: the nearest previously plausibility-gated window's estimate (walk-back, skipping
+ *    insufficient/unreliable). Needs the current window gated too.
+ *  - calc2: the smoothed value from the #8 rolling series at the point nearest the current
+ *    window's start — needs ≥2 gated series points, else falls back to calc1.
+ * Selection rule: calc2 if present, else calc1, else "not enough data". */
+export function computeAdherence(
+  entries: Entry[],
+  nutrition: NutritionEntry[],
+  phaseLog: PhaseLogEntry[],
+  weekly: WeeklyAverage[],
+  today: string,
+  opts: { trendWeeks?: number; windowDays?: number; historyStepDays?: number } = {},
+): AdherenceResult {
+  const trendWeeks = opts.trendWeeks ?? 4
+  const windowDays = opts.windowDays ?? ESTIMATE_WINDOW_DAYS
+  const historyStepDays = opts.historyStepDays ?? MAINTENANCE_HISTORY_STEP_DAYS
+
+  const currentEst = estimateMaintenance(entries, nutrition, phaseLog, today, windowDays)
+  const actualRate = fitSlope(weekly, trendWeeks).slope
+  const kcalPerLb = phaseKcalPerLb(phaseLog, today, currentEst.weightChangeLbs ?? actualRate)
+  const history = computeMaintenanceHistory(entries, nutrition, phaseLog, today, historyStepDays, windowDays)
+
+  const mkCalc = (reference: AdherenceReference): AdherenceCalc => {
+    const avgLoggedIntake = currentEst.meanIntake as number
+    const predictedRate = ((avgLoggedIntake - reference.maintenance) / kcalPerLb) * 7
+    return { reference, avgLoggedIntake, kcalPerLb, predictedRate, actualRate, divergence: actualRate - predictedRate }
+  }
+
+  let calc1: AdherenceCalc | null = null
+  let calc2: AdherenceCalc | null = null
+
+  if (currentEst.kind === 'ok') {
+    const nearest = findNearestGatedWindow(entries, nutrition, phaseLog, currentEst.windowStart, windowDays)
+    if (nearest && nearest.estimate.maintenance != null) {
+      calc1 = mkCalc({
+        source: 'nearest-gated-window',
+        maintenance: nearest.estimate.maintenance,
+        date: nearest.date,
+        windowStart: nearest.estimate.windowStart,
+      })
+    }
+
+    // Never let calc2 pick a series point that reaches into the current window.
+    const eligible = history.gated.filter((p) => p.date < today && p.maintenance != null)
+    if (eligible.length >= 2) {
+      const anchor = currentEst.windowStart
+      const nearestPoint = eligible.reduce((best, p) =>
+        Math.abs(diffDays(p.date, anchor)) < Math.abs(diffDays(best.date, anchor)) ? p : best,
+      )
+      calc2 = mkCalc({
+        source: 'maintenance-series',
+        maintenance: nearestPoint.maintenance as number,
+        date: nearestPoint.date,
+      })
+    }
+  }
+
+  const live: AdherenceLive | null = calc2 ? 'calc2' : calc1 ? 'calc1' : null
+  const applicable = live !== null
+
+  const note = !applicable
+    ? currentEst.kind !== 'ok'
+      ? `Current window isn't gated (${currentEst.kind}) — no adherence read yet.`
+      : 'No gated prior window anywhere in history yet — not enough data.'
+    : live === 'calc2'
+      ? 'LIVE: calc 2 — rolling-series reference.'
+      : 'LIVE: calc 1 — nearest gated window. Calc 2 needs 2+ gated series points.'
+
+  return {
+    applicable,
+    live,
+    calc1,
+    calc2,
+    currentEst,
+    divergenceHistory: adherenceDivergenceHistory(history, phaseLog, weekly, trendWeeks),
+    note,
+  }
+}
+
+/** Divergence for each consecutive pair of gated rolling windows — reference is the *previous*
+ * gated window's maintenance, never the window's own (same anti-tautology rule as the live
+ * calc). Purely a visual aid for spotting a divergence that holds across 3+ windows; no
+ * threshold or persistence logic is applied here on purpose. */
+function adherenceDivergenceHistory(
+  history: MaintenanceHistory,
+  phaseLog: PhaseLogEntry[],
+  weekly: WeeklyAverage[],
+  trendWeeks: number,
+): AdherenceHistoryPoint[] {
+  const out: AdherenceHistoryPoint[] = []
+  const { gated } = history
+  for (let i = 1; i < gated.length; i++) {
+    const cur = gated[i]
+    const ref = gated[i - 1]
+    if (cur.meanIntake == null || ref.maintenance == null) continue
+    const kcalPerLb = phaseKcalPerLb(phaseLog, cur.date, cur.weightChangeLbs ?? 0)
+    const predictedRate = ((cur.meanIntake - ref.maintenance) / kcalPerLb) * 7
+    const actualRate = fitSlope(weekly.filter((w) => w.monday <= cur.date), trendWeeks).slope
+    out.push({ date: cur.date, predictedRate, actualRate, divergence: actualRate - predictedRate })
+  }
+  return out
 }
