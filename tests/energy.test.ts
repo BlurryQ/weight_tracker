@@ -334,6 +334,25 @@ describe('computeMaintenanceHistory — series outlier flag (#8)', () => {
     expect(res.calc2!.reference.date).not.toBe(outlierDate)
     expect(h.trend.map((p) => p.date)).toContain(res.calc2!.reference.date)
   })
+
+  it('keeps an outlier from spiking a neighbour’s divergence-history bar', () => {
+    // Consistent intake + steady loss -> real divergence is ~0 for every window. The only way a
+    // history bar spikes here is by referencing the flagged first window.
+    const { entries, nutrition } = oneOutlier()
+    const h = computeMaintenanceHistory(entries, nutrition, [], TODAY)
+    const res = computeAdherence(entries, nutrition, [], weeklyAverages(entries), TODAY)
+
+    expect(res.divergenceHistory.every((p) => Math.abs(p.divergence) < 0.15)).toBe(true)
+    // The first non-outlier window has no clean earlier reference, so it's dropped rather than
+    // scored against the flagged point.
+    expect(res.divergenceHistory.map((p) => p.date)).not.toContain(h.gated[1].date)
+
+    // A clean series keeps the full set (one entry per gated window after the first).
+    const clean = buildHistory(190, [{ days: 84, lbsPerWeek: -0.5, kcal: 3000 }])
+    const cleanRes = computeAdherence(clean.entries, clean.nutrition, [], weeklyAverages(clean.entries), TODAY)
+    const cleanHist = computeMaintenanceHistory(clean.entries, clean.nutrition, [], TODAY)
+    expect(cleanRes.divergenceHistory).toHaveLength(cleanHist.gated.length - 1)
+  })
 })
 
 describe('findNearestGatedWindow (#6 walk-back)', () => {

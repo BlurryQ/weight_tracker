@@ -486,7 +486,9 @@ export interface AdherenceResult {
   /** The current evaluation window's own estimate — both calcs require this to be gated. */
   currentEst: MaintenanceEstimate
   /** Per-window divergence across the recent rolling windows, oldest first — lets the
-   * "is this divergence persistent?" question be read by eye, no threshold layer baked in. */
+   * "is this divergence persistent?" question be read by eye, no threshold layer baked in. Each
+   * window is scored against its nearest earlier non-outlier gated window, so a flagged point
+   * can't spike a neighbour's bar. */
   divergenceHistory: AdherenceHistoryPoint[]
   note: string
 }
@@ -580,10 +582,13 @@ export function computeAdherence(
   }
 }
 
-/** Divergence for each consecutive pair of gated rolling windows — reference is the *previous*
- * gated window's maintenance, never the window's own (same anti-tautology rule as the live
- * calc). Purely a visual aid for spotting a divergence that holds across 3+ windows; no
- * threshold or persistence logic is applied here on purpose. */
+/** Divergence for each gated rolling window — reference is the nearest *earlier* gated window
+ * that isn't itself a series outlier (never the window's own — same anti-tautology rule as the
+ * live calc — and never a flagged point, same reasoning as calc 2: an outlier shouldn't get to
+ * distort another window's reading). `cur` still ranges over every gated window, outliers
+ * included, so a flagged window's own divergence stays visible; only a window with no clean
+ * earlier reference is dropped. Purely a visual aid for spotting a divergence that holds across
+ * 3+ windows; no threshold or persistence logic is applied here on purpose. */
 function adherenceDivergenceHistory(
   history: MaintenanceHistory,
   phaseLog: PhaseLogEntry[],
@@ -594,8 +599,14 @@ function adherenceDivergenceHistory(
   const { gated } = history
   for (let i = 1; i < gated.length; i++) {
     const cur = gated[i]
-    const ref = gated[i - 1]
-    if (cur.meanIntake == null || ref.maintenance == null) continue
+    let ref: MaintenancePoint | null = null
+    for (let j = i - 1; j >= 0; j--) {
+      if (gated[j].seriesFlag === null) {
+        ref = gated[j]
+        break
+      }
+    }
+    if (!ref || cur.meanIntake == null || ref.maintenance == null) continue
     const kcalPerLb = phaseKcalPerLb(phaseLog, cur.date, cur.weightChangeLbs ?? 0)
     const predictedRate = ((cur.meanIntake - ref.maintenance) / kcalPerLb) * 7
     const actualRate = fitSlope(weekly.filter((w) => w.monday <= cur.date), trendWeeks).slope
