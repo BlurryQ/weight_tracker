@@ -116,6 +116,74 @@ describe('estimateMaintenance', () => {
   })
 })
 
+describe('estimateMaintenance — insufficient reason breakdown', () => {
+  it('names the calorie-days gate and its numbers, no clamp when logging is just sparse', () => {
+    const { entries } = scenario(28, { start: 185, lbsPerWeek: -0.5, kcal: 2000 })
+    const nutrition = scenario(10, { start: 185, lbsPerWeek: -0.5, kcal: 2000 }).nutrition
+    const est = estimateMaintenance(entries, nutrition, [], TODAY)
+
+    expect(est.kind).toBe('insufficient')
+    expect(est.insufficientReason).toEqual({
+      check: 'calorie-days',
+      have: 10,
+      need: 14,
+      clampedByPhaseChange: null,
+      effectiveWindowDays: 28,
+    })
+    expect(est.note).toBe('Only 10 of 14 calorie-days in the window.')
+  })
+
+  it('blames the phase clamp by name when a mid-window phase change is what shortened it', () => {
+    // 28 clean, fully-logged days — plenty on its own — but a Cut starting the Monday 4 days
+    // back pins the window to 5 days, under the 14-day calorie minimum.
+    const { entries, nutrition } = scenario(28, { start: 185, lbsPerWeek: -0.5, kcal: 2000 })
+    const est = estimateMaintenance(entries, nutrition, [{ start: '2026-08-24', name: 'Cut' }], TODAY)
+
+    expect(est.kind).toBe('insufficient')
+    expect(est.insufficientReason).toEqual({
+      check: 'calorie-days',
+      have: 5,
+      need: 14,
+      clampedByPhaseChange: '2026-08-24',
+      effectiveWindowDays: 5,
+    })
+    expect(est.note).toBe('Only 5 of 14 calorie-days in the window — window clamped to 5 days by the 24 Aug 2026 phase change.')
+  })
+
+  it('distinguishes the weigh-ins gate from the day-span gate', () => {
+    const nutrition = scenario(20, { start: 185, lbsPerWeek: -0.5, kcal: 2000 }).nutrition
+
+    // Enough calorie-days, but only one weigh-in.
+    const oneWeighIn = estimateMaintenance([{ date: TODAY, lbs: 185 }], nutrition, [], TODAY)
+    expect(oneWeighIn.insufficientReason).toMatchObject({ check: 'weigh-ins', have: 1, need: 2 })
+
+    // Enough calorie-days and 3 weigh-ins, but they span only 2 days.
+    const clustered = estimateMaintenance(
+      [
+        { date: addDays(TODAY, -2), lbs: 185 },
+        { date: addDays(TODAY, -1), lbs: 184.9 },
+        { date: TODAY, lbs: 184.8 },
+      ],
+      nutrition,
+      [],
+      TODAY,
+    )
+    expect(clustered.insufficientReason).toMatchObject({ check: 'day-span', have: 2, need: 7 })
+  })
+
+  it('leaves insufficientReason null on the ok and unreliable paths', () => {
+    const okData = scenario(28, { start: 185, lbsPerWeek: -0.5, kcal: 2000 })
+    const ok = estimateMaintenance(okData.entries, okData.nutrition, [], TODAY)
+    expect(ok.kind).toBe('ok')
+    expect(ok.insufficientReason).toBeNull()
+
+    const hotData = scenario(28, { start: 185, lbsPerWeek: -0.5, kcal: 5000 })
+    const unreliable = estimateMaintenance(hotData.entries, hotData.nutrition, [], TODAY)
+    expect(unreliable.kind).toBe('unreliable')
+    expect(unreliable.insufficientReason).toBeNull()
+  })
+})
+
 describe('targetIntake / intakeAdjustment', () => {
   it('shifts maintenance by the weekly goal in daily kcal, at the goal-direction density', () => {
     expect(targetIntake(2500, -1)).toBe(2000) // cut goal: fat density (3500/lb) -> -500/day
@@ -201,6 +269,11 @@ describe('computeMaintenanceHistory (#8 rolling series)', () => {
     expect(h.points.map((p) => p.kind)).toEqual(['insufficient', 'insufficient', 'ok', 'ok', 'ok'])
     expect(h.gated).toEqual(h.points.slice(2))
     expect(h.gated.every((p) => isMonday(p.date))).toBe(true)
+
+    // Each point carries estimateMaintenance's note + structured reason through to the table.
+    expect(h.points[0].insufficientReason?.check).toBe('calorie-days')
+    expect(h.points[0].note).toMatch(/calorie-days/)
+    expect(h.gated.every((p) => p.note.length > 0 && p.insufficientReason === null)).toBe(true)
   })
 })
 

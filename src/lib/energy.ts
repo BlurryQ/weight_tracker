@@ -1,4 +1,4 @@
-import { addDays, diffDays, mondayOf } from './dates'
+import { addDays, diffDays, fullDate, mondayOf } from './dates'
 import {
   fitQualityLabel,
   fitSlope,
@@ -43,6 +43,24 @@ export interface NutritionEntry {
 
 export type MaintenanceKind = 'ok' | 'insufficient' | 'unreliable'
 
+/** Which of estimateMaintenance's three data gates failed, when kind === 'insufficient'. */
+export type InsufficientCheck = 'calorie-days' | 'weigh-ins' | 'day-span'
+
+export interface InsufficientReason {
+  /** The gate that failed. */
+  check: InsufficientCheck
+  /** The value we had. */
+  have: number
+  /** The value the gate needs. */
+  need: number
+  /** ISO date (the phase span's Monday) the window was clamped to, set only when the window is
+   * short *because of that phase change* rather than sparse logging — else null. This is the
+   * one that turns a "why is this window empty?" dig into a one-line answer. */
+  clampedByPhaseChange: string | null
+  /** Window length in days once any phase clamp is applied (today − windowStart + 1). */
+  effectiveWindowDays: number
+}
+
 export interface MaintenanceEstimate {
   kind: MaintenanceKind
   /** Estimated maintenance calories (TDEE), rounded to the nearest 10. Null when insufficient. */
@@ -62,8 +80,12 @@ export interface MaintenanceEstimate {
   windowStart: string
   /** R² of the weight fit over the window — a trust signal for the number next to it. */
   r2: number
-  /** Plain-English read, e.g. "Reliable · tight fit" or why there's no number yet. */
+  /** Plain-English read, e.g. "Reliable · tight fit" or why there's no number yet. When
+   * kind === 'insufficient' this spells out which gate failed, the numbers, and any phase clamp. */
   note: string
+  /** Populated only when kind === 'insufficient': the structured form of the note's reason, so
+   * callers can render it their own way. Null on every other kind. */
+  insufficientReason: InsufficientReason | null
 }
 
 function mean(xs: number[]): number {
@@ -87,10 +109,13 @@ export function estimateMaintenance(
   today: string,
   windowDays = ESTIMATE_WINDOW_DAYS,
 ): MaintenanceEstimate {
-  let windowStart = addDays(today, -(windowDays - 1))
+  const rawWindowStart = addDays(today, -(windowDays - 1))
 
   const lastSpan = phaseSpans(phaseLog).filter((s) => s.start <= today).slice(-1)[0]
-  if (lastSpan && lastSpan.start > windowStart) windowStart = lastSpan.start
+  // The window is "clamped" only when a phase change lands *inside* the raw window — that, not
+  // sparse logging, is then the reason a short window can't clear the data gates.
+  const clampedByPhaseChange = lastSpan && lastSpan.start > rawWindowStart ? lastSpan.start : null
+  const windowStart = clampedByPhaseChange ?? rawWindowStart
 
   const inWindow = (d: string) => d >= windowStart && d <= today
   const weightPts = entries
@@ -109,17 +134,44 @@ export function estimateMaintenance(
     windowDays: spanDays,
     windowStart,
     r2: 0,
+    insufficientReason: null,
   }
+
+  const effectiveWindowDays = diffDays(windowStart, today) + 1
+  const clampNote = clampedByPhaseChange
+    ? ` — window clamped to ${effectiveWindowDays} days by the ${fullDate(clampedByPhaseChange)} phase change`
+    : ''
+  const reason = (check: InsufficientCheck, have: number, need: number): InsufficientReason => ({
+    check,
+    have,
+    need,
+    clampedByPhaseChange,
+    effectiveWindowDays,
+  })
 
   if (calorieDays < MIN_CALORIE_DAYS) {
     return {
       ...base,
       kind: 'insufficient',
-      note: `Need ${MIN_CALORIE_DAYS}+ days of food logging — have ${calorieDays}.`,
+      note: `Only ${calorieDays} of ${MIN_CALORIE_DAYS} calorie-days in the window${clampNote}.`,
+      insufficientReason: reason('calorie-days', calorieDays, MIN_CALORIE_DAYS),
     }
   }
-  if (weightPts.length < 2 || spanDays < 7) {
-    return { ...base, kind: 'insufficient', note: 'Not enough weigh-ins in this window yet.' }
+  if (weightPts.length < 2) {
+    return {
+      ...base,
+      kind: 'insufficient',
+      note: `Only ${weightPts.length} of 2 weigh-ins needed in the window${clampNote}.`,
+      insufficientReason: reason('weigh-ins', weightPts.length, 2),
+    }
+  }
+  if (spanDays < 7) {
+    return {
+      ...base,
+      kind: 'insufficient',
+      note: `Weigh-ins span just ${spanDays} of the 7 days needed${clampNote}.`,
+      insufficientReason: reason('day-span', spanDays, 7),
+    }
   }
 
   const fit = leastSquaresFit(weightPts)
@@ -159,6 +211,7 @@ export function estimateMaintenance(
     windowStart,
     r2: fit.r2,
     note: `${coverageWord} · ${fitQualityLabel(fit.r2).toLowerCase()}`,
+    insufficientReason: null,
   }
 }
 
@@ -224,6 +277,11 @@ export interface MaintenancePoint {
   weightChangeLbs: number | null
   /** R² of the window's weight fit. */
   r2: number
+  /** estimateMaintenance's plain-English `note` for this window — carries the insufficient
+   * reason (which gate, the numbers, any phase clamp) so the series table can show it inline. */
+  note: string
+  /** Structured insufficient reason, when `kind === 'insufficient'`; null otherwise. */
+  insufficientReason: InsufficientReason | null
 }
 
 export interface MaintenanceHistory {
@@ -274,6 +332,8 @@ export function computeMaintenanceHistory(
       meanIntake: est.meanIntake,
       weightChangeLbs: est.weightChangeLbs,
       r2: est.r2,
+      note: est.note,
+      insufficientReason: est.insufficientReason,
     }
   })
 
@@ -450,7 +510,7 @@ export function computeAdherence(
 
   const note = !applicable
     ? currentEst.kind !== 'ok'
-      ? `Current window isn't gated (${currentEst.kind}) — no adherence read yet.`
+      ? `Current window isn't gated (${currentEst.kind}) — ${currentEst.note}`
       : 'No gated prior window anywhere in history yet — not enough data.'
     : live === 'calc2'
       ? 'LIVE: calc 2 — rolling-series reference.'

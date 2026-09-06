@@ -4,9 +4,19 @@ import {
   ESTIMATE_WINDOW_DAYS,
   MAINTENANCE_HISTORY_STEP_DAYS,
   computeMaintenanceHistory,
+  type InsufficientReason,
 } from '../../lib/energy'
 import { leastSquaresFit } from '../../lib/math'
 import { useApp } from '../../store/AppContext'
+
+/** Terse form of the insufficient reason for the series table cell — e.g. "8/14 cal-days" or
+ * "8/14 cal-days · clamped 8d". Full sentence is on the row's title attribute. */
+function terseReason(r: InsufficientReason | null): string {
+  if (!r) return ''
+  const gate = r.check === 'calorie-days' ? 'cal-days' : r.check === 'weigh-ins' ? 'weigh-ins' : 'day-span'
+  const core = `${r.have}/${r.need} ${gate}`
+  return r.clampedByPhaseChange ? `${core} · clamped ${r.effectiveWindowDays}d` : core
+}
 
 // Lab module #8 — metabolic adaptation trend. No new formula: estimateMaintenance() called on a
 // rolling basis (every `step` days, over a trailing `window`) and the {date, maintenance, kind}
@@ -193,12 +203,16 @@ export function MaintenanceTrendModule() {
         {label(`Series · ${points.length} windows, ${gated.length} gated`)}
         <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: 'auto auto 1fr', gap: '3px 12px', font: `500 10px/1.5 ${MONO}` }}>
           {points.map((p) => (
-            <div key={p.date} style={{ display: 'contents' }}>
+            <div key={p.date} style={{ display: 'contents' }} title={p.kind === 'ok' ? undefined : p.note}>
               <span style={{ color: 'var(--text-dim)' }}>{weekCommencingLabel(p.date)}</span>
               <span style={{ color: p.maintenance == null ? 'var(--text-muted)' : 'var(--text-secondary)', textAlign: 'right' }}>
                 {p.maintenance == null ? '—' : `${p.maintenance}`}
               </span>
-              <span style={{ color: p.kind === 'ok' ? 'var(--accent-text)' : 'var(--text-muted)' }}>{p.kind}</span>
+              <span style={{ color: p.kind === 'ok' ? 'var(--accent-text)' : 'var(--text-muted)' }}>
+                {p.kind === 'insufficient' && p.insufficientReason
+                  ? `insufficient · ${terseReason(p.insufficientReason)}`
+                  : p.kind}
+              </span>
             </div>
           ))}
         </div>

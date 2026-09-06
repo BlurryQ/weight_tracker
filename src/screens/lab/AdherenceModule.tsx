@@ -194,6 +194,9 @@ export function AdherenceModule() {
             {res.currentEst.meanIntake != null ? res.currentEst.meanIntake : '—'}
           </span>
         </div>
+        {res.currentEst.kind !== 'ok' && (
+          <div style={{ marginTop: 4, color: 'var(--text-muted)' }}>{res.currentEst.note}</div>
+        )}
       </div>
 
       <DivergenceHistory points={res.divergenceHistory} />
