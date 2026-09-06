@@ -74,16 +74,14 @@ function Stepper({ name, value, suffix, onStep }: { name: string; value: string;
   )
 }
 
-/** Tiny inline line chart of the gated maintenance series. Non-gated points are drawn as hollow
- * markers on the same time axis so a gap in the series is visible, not silently closed up. */
-function SeriesChart({
-  points,
-  today,
-}: {
-  points: { date: string; maintenance: number | null; kind: string }[]
-  today: string
-}) {
-  const withVal = points.filter((p) => p.maintenance != null) as { date: string; maintenance: number; kind: string }[]
+type ChartPoint = { date: string; maintenance: number | null; kind: string; seriesFlag: 'outlier' | null }
+
+/** Tiny inline line chart of the gated maintenance series. The trend line connects only the
+ * non-outlier gated points; series outliers are drawn as amber rings, and non-gated windows
+ * with a number (unreliable) as hollow grey markers — so both stay visible without bending the
+ * line. */
+function SeriesChart({ points, today }: { points: ChartPoint[]; today: string }) {
+  const withVal = points.filter((p) => p.maintenance != null) as (ChartPoint & { maintenance: number })[]
   if (withVal.length < 2) return null
 
   const W = 280
@@ -100,8 +98,8 @@ function SeriesChart({
   const x = (d: string) => padX + (diffDays(first, d) / spanDays) * (W - 2 * padX)
   const y = (v: number) => padY + (1 - (v - lo) / range) * (H - 2 * padY)
 
-  const gated = withVal.filter((p) => p.kind === 'ok')
-  const linePts = gated.map((p) => `${x(p.date).toFixed(1)},${y(p.maintenance).toFixed(1)}`).join(' ')
+  const trend = withVal.filter((p) => p.kind === 'ok' && p.seriesFlag === null)
+  const linePts = trend.map((p) => `${x(p.date).toFixed(1)},${y(p.maintenance).toFixed(1)}`).join(' ')
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} style={{ marginTop: 10, display: 'block', overflow: 'visible' }}>
@@ -109,18 +107,22 @@ function SeriesChart({
       <line x1={padX} y1={y(lo)} x2={W - padX} y2={y(lo)} stroke="var(--divider)" strokeWidth={1} />
       <text x={padX} y={y(hi) - 3} fill="var(--text-dim)" style={{ font: `500 8px ${MONO}` }}>{Math.round(hi)}</text>
       <text x={padX} y={y(lo) + 9} fill="var(--text-dim)" style={{ font: `500 8px ${MONO}` }}>{Math.round(lo)}</text>
-      {gated.length >= 2 && <polyline points={linePts} fill="none" stroke="var(--accent)" strokeWidth={1.5} />}
-      {withVal.map((p) => (
-        <circle
-          key={p.date}
-          cx={x(p.date)}
-          cy={y(p.maintenance)}
-          r={2.6}
-          fill={p.kind === 'ok' ? 'var(--accent)' : 'transparent'}
-          stroke={p.kind === 'ok' ? 'none' : 'var(--text-muted)'}
-          strokeWidth={1}
-        />
-      ))}
+      {trend.length >= 2 && <polyline points={linePts} fill="none" stroke="var(--accent)" strokeWidth={1.5} />}
+      {withVal.map((p) => {
+        const outlier = p.kind === 'ok' && p.seriesFlag === 'outlier'
+        const gated = p.kind === 'ok' && p.seriesFlag === null
+        return (
+          <circle
+            key={p.date}
+            cx={x(p.date)}
+            cy={y(p.maintenance)}
+            r={outlier ? 3.2 : 2.6}
+            fill={gated ? 'var(--accent)' : outlier ? 'transparent' : 'transparent'}
+            stroke={outlier ? 'var(--amber)' : gated ? 'none' : 'var(--text-muted)'}
+            strokeWidth={outlier ? 1.6 : 1}
+          />
+        )
+      })}
     </svg>
   )
 }
@@ -134,18 +136,21 @@ export function MaintenanceTrendModule() {
   const [windowDays, setWindowDays] = useState(ESTIMATE_WINDOW_DAYS)
 
   const history = computeMaintenanceHistory(entries, nutrition, phaseLog, today, stepDays, windowDays)
-  const { points, gated } = history
+  const { points, gated, trend } = history
+  const outlierCount = gated.length - trend.length
 
-  // Adaptation slope: least-squares fit of the gated maintenance values against elapsed days,
-  // reported as kcal/day of drift per 4 weeks (the same 28-day yardstick the window uses).
+  // Adaptation slope + net drift, both over the *trend* set (gated, series outliers dropped) so
+  // a first-estimate water-weight blip can't tilt the fit or land as an endpoint. kcal/day of
+  // drift per 4 weeks — the same 28-day yardstick the window uses.
   let adaptPer28: number | null = null
   let netDrift: number | null = null
-  if (gated.length >= 2) {
-    const base = gated[0].date
-    const fit = leastSquaresFit(gated.map((p) => ({ x: diffDays(base, p.date), y: p.maintenance as number })))
+  if (trend.length >= 2) {
+    const base = trend[0].date
+    const fit = leastSquaresFit(trend.map((p) => ({ x: diffDays(base, p.date), y: p.maintenance as number })))
     adaptPer28 = fit.slope * 28
-    netDrift = (gated[gated.length - 1].maintenance as number) - (gated[0].maintenance as number)
+    netDrift = (trend[trend.length - 1].maintenance as number) - (trend[0].maintenance as number)
   }
+  const latest = trend.length ? trend[trend.length - 1] : gated.length ? gated[gated.length - 1] : null
 
   const stepStep = (dir: 1 | -1) => setStepDays((v) => Math.min(STEP_MAX, Math.max(STEP_MIN, v + dir * 7)))
   const winStep = (dir: 1 | -1) => setWindowDays((v) => Math.min(WINDOW_MAX, Math.max(WINDOW_MIN, v + dir * 7)))
@@ -172,7 +177,7 @@ export function MaintenanceTrendModule() {
             <div style={{ flex: 1 }}>
               {label('Latest maint.')}
               <div style={{ marginTop: 5, font: `700 18px/1 ${COND}`, color: 'var(--text-secondary)' }}>
-                {gated[gated.length - 1].maintenance} <span style={{ font: `500 9px/1 ${MONO}`, color: 'var(--text-dim)' }}>cal/day</span>
+                {latest ? latest.maintenance : '—'} <span style={{ font: `500 9px/1 ${MONO}`, color: 'var(--text-dim)' }}>cal/day</span>
               </div>
             </div>
             <div style={{ flex: 1 }}>
@@ -200,21 +205,40 @@ export function MaintenanceTrendModule() {
       )}
 
       <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--divider)' }}>
-        {label(`Series · ${points.length} windows, ${gated.length} gated`)}
+        {label(
+          `Series · ${points.length} windows, ${gated.length} gated` +
+            (outlierCount ? `, ${outlierCount} outlier` : ''),
+        )}
         <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: 'auto auto 1fr', gap: '3px 12px', font: `500 10px/1.5 ${MONO}` }}>
-          {points.map((p) => (
-            <div key={p.date} style={{ display: 'contents' }} title={p.kind === 'ok' ? undefined : p.note}>
-              <span style={{ color: 'var(--text-dim)' }}>{weekCommencingLabel(p.date)}</span>
-              <span style={{ color: p.maintenance == null ? 'var(--text-muted)' : 'var(--text-secondary)', textAlign: 'right' }}>
-                {p.maintenance == null ? '—' : `${p.maintenance}`}
-              </span>
-              <span style={{ color: p.kind === 'ok' ? 'var(--accent-text)' : 'var(--text-muted)' }}>
-                {p.kind === 'insufficient' && p.insufficientReason
-                  ? `insufficient · ${terseReason(p.insufficientReason)}`
-                  : p.kind}
-              </span>
-            </div>
-          ))}
+          {points.map((p) => {
+            const outlier = p.kind === 'ok' && p.seriesFlag === 'outlier'
+            const status = outlier
+              ? 'ok · outlier — off the rest of the series'
+              : p.kind === 'insufficient' && p.insufficientReason
+                ? `insufficient · ${terseReason(p.insufficientReason)}`
+                : p.kind
+            return (
+              <div
+                key={p.date}
+                style={{ display: 'contents' }}
+                title={
+                  outlier
+                    ? 'Gated and plausible on its own, but far off the median of the rest of the series — kept out of the drift maths and the calc-2 reference.'
+                    : p.kind !== 'ok'
+                      ? p.note
+                      : undefined
+                }
+              >
+                <span style={{ color: 'var(--text-dim)' }}>{weekCommencingLabel(p.date)}</span>
+                <span style={{ color: p.maintenance == null ? 'var(--text-muted)' : 'var(--text-secondary)', textAlign: 'right' }}>
+                  {p.maintenance == null ? '—' : `${p.maintenance}`}
+                </span>
+                <span style={{ color: outlier ? 'var(--amber)' : p.kind === 'ok' ? 'var(--accent-text)' : 'var(--text-muted)' }}>
+                  {status}
+                </span>
+              </div>
+            )
+          })}
         </div>
       </div>
 

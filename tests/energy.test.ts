@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { addDays, diffDays, mondayOf } from '../src/lib/dates'
 import {
+  OUTLIER_MIN_GATED,
   computeAdherence,
   computeMaintenanceHistory,
   estimateMaintenance,
@@ -274,6 +275,64 @@ describe('computeMaintenanceHistory (#8 rolling series)', () => {
     expect(h.points[0].insufficientReason?.check).toBe('calorie-days')
     expect(h.points[0].note).toMatch(/calorie-days/)
     expect(h.gated.every((p) => p.note.length > 0 && p.insufficientReason === null)).toBe(true)
+  })
+})
+
+describe('computeMaintenanceHistory — series outlier flag (#8)', () => {
+  // 10 days eating 2000 then 74 days eating 3000, steady −0.5 lb/wk throughout. Only the oldest
+  // 28-day window sees the low intake (maintenance ~2830); every later window settles at ~3250
+  // — the classic early water-weight confound.
+  const oneOutlier = () =>
+    buildHistory(190, [
+      { days: 10, lbsPerWeek: -0.5, kcal: 2000 },
+      { days: 74, lbsPerWeek: -0.5, kcal: 3000 },
+    ])
+
+  it('flags a gated point that sits far off the rest of the person’s own series', () => {
+    const { entries, nutrition } = oneOutlier()
+    const h = computeMaintenanceHistory(entries, nutrition, [], TODAY)
+
+    expect(h.gated).toHaveLength(5)
+    expect(h.gated[0].seriesFlag).toBe('outlier')
+    expect(h.gated[0].kind).toBe('ok') // still gated & plausible on its own — not 'unreliable'
+    expect(h.gated.slice(1).every((p) => p.seriesFlag === null)).toBe(true)
+    // `trend` is the outlier-free subset the drift maths / calc 2 consume.
+    expect(h.trend).toEqual(h.gated.slice(1))
+  })
+
+  it('does not flag anything when the series is internally consistent', () => {
+    const { entries, nutrition } = buildHistory(190, [{ days: 84, lbsPerWeek: -0.5, kcal: 3000 }])
+    const h = computeMaintenanceHistory(entries, nutrition, [], TODAY)
+
+    expect(h.gated.length).toBeGreaterThanOrEqual(4)
+    expect(h.gated.every((p) => p.seriesFlag === null)).toBe(true)
+    expect(h.trend).toEqual(h.gated)
+  })
+
+  it('will not judge outlier-ness with fewer than the minimum gated points', () => {
+    // ~48 days -> only 3 gated windows; the oldest is plainly off but there isn't enough of a
+    // "rest of the series" to call it, so it stays untagged (same as any under-evidenced case).
+    const { entries, nutrition } = buildHistory(190, [
+      { days: 10, lbsPerWeek: -0.5, kcal: 2000 },
+      { days: 38, lbsPerWeek: -0.5, kcal: 3000 },
+    ])
+    const h = computeMaintenanceHistory(entries, nutrition, [], TODAY)
+
+    expect(h.gated.length).toBeLessThan(OUTLIER_MIN_GATED)
+    expect(h.gated.some((p) => (p.maintenance as number) < 2900)).toBe(true) // the off point is there
+    expect(h.gated.every((p) => p.seriesFlag === null)).toBe(true)
+    expect(h.trend).toEqual(h.gated)
+  })
+
+  it('keeps an outlier out of adherence calc 2’s reference', () => {
+    const { entries, nutrition } = oneOutlier()
+    const h = computeMaintenanceHistory(entries, nutrition, [], TODAY)
+    const outlierDate = h.gated.find((p) => p.seriesFlag === 'outlier')!.date
+
+    const res = computeAdherence(entries, nutrition, [], weeklyAverages(entries), TODAY)
+    expect(res.calc2).not.toBeNull()
+    expect(res.calc2!.reference.date).not.toBe(outlierDate)
+    expect(h.trend.map((p) => p.date)).toContain(res.calc2!.reference.date)
   })
 })
 

@@ -282,16 +282,62 @@ export interface MaintenancePoint {
   note: string
   /** Structured insufficient reason, when `kind === 'insufficient'`; null otherwise. */
   insufficientReason: InsufficientReason | null
+  /** Series-level flag: `'outlier'` when this *gated* point sits far off the pattern of the
+   * rest of this person's own series — a relative check against the other gated points, not the
+   * fixed 1200–5000 band that drives `'unreliable'`. Null when the point is in-pattern, when
+   * there aren't enough gated points to judge, or when it isn't gated at all. Flagged points
+   * still render; they're just kept out of the drift maths and the adherence calc-2 reference. */
+  seriesFlag: 'outlier' | null
 }
 
 export interface MaintenanceHistory {
   /** Every computed window, oldest first — including non-gated ones (drawn dimmed on the chart). */
   points: MaintenancePoint[]
-  /** Just the gated (`kind === 'ok'`) points, oldest first. This is the series adherence calc 2
-   * references. */
+  /** The gated (`kind === 'ok'`) points, oldest first — outliers included. Use this for anything
+   * that wants to *show* the raw series (chart markers, the divergence-history row). */
   gated: MaintenancePoint[]
+  /** Gated points that also pass the series-level outlier check (`seriesFlag === null`), oldest
+   * first — the set the DRIFT/4WK fit, NET DRIFT endpoints, and adherence calc 2 should use. */
+  trend: MaintenancePoint[]
   stepDays: number
   windowDays: number
+}
+
+/** Minimum gated points before the series outlier check runs at all — below this there isn't a
+ * stable enough "rest of the series" to judge any one point against, so nothing is flagged. */
+export const OUTLIER_MIN_GATED = 4
+/** Ignore deviations smaller than this (kcal) from the others' median — noise, not an outlier. */
+const OUTLIER_ABS_FLOOR = 250
+/** How many of the others' scaled-MAD a deviation must clear to count. */
+const OUTLIER_K = 3
+/** Only judge a point against the rest when the rest are themselves this tight or tighter
+ * (scaled MAD, kcal) — otherwise "the pattern" isn't defined well enough to call anything off it. */
+const OUTLIER_BASELINE_MAX_MAD = 150
+
+function median(xs: number[]): number {
+  const s = [...xs].sort((a, b) => a - b)
+  const m = s.length >> 1
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2
+}
+
+/** Tags each gated point `'outlier'` when its maintenance sits far off the median of *all the
+ * other* gated points — a relative, self-referential check for the early water-weight/glycogen
+ * confound (a first estimate that doesn't match the person's later, settled ones), distinct
+ * from `'unreliable'`'s absolute plausibility band. Single pass: every point is judged against
+ * the others as-is (a second same-side outlier could mask the first — acceptable for now).
+ * Mutates `points` in place. */
+function flagSeriesOutliers(points: MaintenancePoint[]): void {
+  const gated = points.filter((p) => p.kind === 'ok' && p.maintenance != null)
+  if (gated.length < OUTLIER_MIN_GATED) return
+  for (const p of gated) {
+    const others = gated.filter((o) => o !== p).map((o) => o.maintenance as number)
+    const med = median(others)
+    const scaledMad = 1.4826 * median(others.map((o) => Math.abs(o - med)))
+    const dev = Math.abs((p.maintenance as number) - med)
+    if (scaledMad <= OUTLIER_BASELINE_MAX_MAD && dev >= OUTLIER_ABS_FLOOR && dev >= OUTLIER_K * scaledMad) {
+      p.seriesFlag = 'outlier'
+    }
+  }
 }
 
 /** Feature #8 — no new formula: call estimateMaintenance() on a rolling basis (every `stepDays`,
@@ -334,10 +380,14 @@ export function computeMaintenanceHistory(
       r2: est.r2,
       note: est.note,
       insufficientReason: est.insufficientReason,
+      seriesFlag: null,
     }
   })
 
-  return { points, gated: points.filter((p) => p.kind === 'ok'), stepDays: weekStep, windowDays }
+  flagSeriesOutliers(points)
+  const gated = points.filter((p) => p.kind === 'ok')
+  const trend = gated.filter((p) => p.seriesFlag === null)
+  return { points, gated, trend, stepDays: weekStep, windowDays }
 }
 
 // --- #6 · logging accuracy / adherence check ------------------------
@@ -429,8 +479,9 @@ export interface AdherenceResult {
   live: AdherenceLive | null
   /** Calc 1 (noisier) — reference = nearest previously-gated raw window. Null when none exists. */
   calc1: AdherenceCalc | null
-  /** Calc 2 (tighter) — reference = the #8 rolling series' gated point nearest the current
-   * window's start. Null when the series has < 2 gated points (then calc1 is the fallback). */
+  /** Calc 2 (tighter) — reference = the #8 rolling series' nearest *non-outlier* gated point to
+   * the current window's start. Null when fewer than 2 such points exist (then calc1 is the
+   * fallback). */
   calc2: AdherenceCalc | null
   /** The current evaluation window's own estimate — both calcs require this to be gated. */
   currentEst: MaintenanceEstimate
@@ -450,8 +501,8 @@ export interface AdherenceResult {
  * both computed here so Lab can show them side by side:
  *  - calc1: the nearest previously plausibility-gated window's estimate (walk-back, skipping
  *    insufficient/unreliable). Needs the current window gated too.
- *  - calc2: the smoothed value from the #8 rolling series at the point nearest the current
- *    window's start — needs ≥2 gated series points, else falls back to calc1.
+ *  - calc2: the smoothed value from the #8 rolling series at the nearest non-outlier gated
+ *    point to the current window's start — needs ≥2 such points, else falls back to calc1.
  * Selection rule: calc2 if present, else calc1, else "not enough data". */
 export function computeAdherence(
   entries: Entry[],
@@ -490,8 +541,10 @@ export function computeAdherence(
       })
     }
 
-    // Never let calc2 pick a series point that reaches into the current window.
-    const eligible = history.gated.filter((p) => p.date < today && p.maintenance != null)
+    // Calc 2 references the *trend* set — gated AND not a series outlier — so it never anchors
+    // to a first-estimate water-weight blip. Also never a point that reaches into the current
+    // window. Falls through to calc 1 when fewer than 2 such points survive.
+    const eligible = history.trend.filter((p) => p.date < today && p.maintenance != null)
     if (eligible.length >= 2) {
       const anchor = currentEst.windowStart
       const nearestPoint = eligible.reduce((best, p) =>
@@ -514,7 +567,7 @@ export function computeAdherence(
       : 'No gated prior window anywhere in history yet — not enough data.'
     : live === 'calc2'
       ? 'LIVE: calc 2 — rolling-series reference.'
-      : 'LIVE: calc 1 — nearest gated window. Calc 2 needs 2+ gated series points.'
+      : 'LIVE: calc 1 — nearest gated window. Calc 2 needs 2+ non-outlier gated series points.'
 
   return {
     applicable,
