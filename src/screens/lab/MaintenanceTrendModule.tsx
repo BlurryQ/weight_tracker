@@ -9,13 +9,12 @@ import {
 import { leastSquaresFit } from '../../lib/math'
 import { useApp } from '../../store/AppContext'
 
-/** Terse form of the insufficient reason for the series table cell — e.g. "8/14 cal-days" or
- * "8/14 cal-days · clamped 8d". Full sentence is on the row's title attribute. */
-function terseReason(r: InsufficientReason | null): string {
-  if (!r) return ''
-  const gate = r.check === 'calorie-days' ? 'cal-days' : r.check === 'weigh-ins' ? 'weigh-ins' : 'day-span'
-  const core = `${r.have}/${r.need} ${gate}`
-  return r.clampedByPhaseChange ? `${core} · clamped ${r.effectiveWindowDays}d` : core
+/** Compact have/need tag for the series table's status cell — e.g. "8/14 CAL". The clamp detail
+ * and full sentence live only in the row's title attribute (via `p.note`), not inline — a phase
+ * clamp note is unbounded length and was the main cause of row wrap on a phone-width grid. */
+function terseTag(r: InsufficientReason): string {
+  const gate = r.check === 'calorie-days' ? 'CAL' : r.check === 'weigh-ins' ? 'WGT' : 'SPAN'
+  return `${r.have}/${r.need} ${gate}`
 }
 
 // Lab module #8 — metabolic adaptation trend. No new formula: estimateMaintenance() called on a
@@ -212,11 +211,18 @@ export function MaintenanceTrendModule() {
         <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: 'auto auto 1fr', gap: '3px 12px', font: `500 10px/1.5 ${MONO}` }}>
           {points.map((p) => {
             const outlier = p.kind === 'ok' && p.seriesFlag === 'outlier'
+            // Short, fixed-width-ish tag for the always-visible cell — the full sentence (incl.
+            // any phase-clamp note, which is unbounded length) only ever lives in the title
+            // tooltip below, so this reliably stays on one line at phone width.
             const status = outlier
-              ? 'ok · outlier — off the rest of the series'
-              : p.kind === 'insufficient' && p.insufficientReason
-                ? `insufficient · ${terseReason(p.insufficientReason)}`
-                : p.kind
+              ? 'OUTLIER'
+              : p.kind === 'insufficient'
+                ? p.insufficientReason
+                  ? `INSUFF ${terseTag(p.insufficientReason)}`
+                  : 'INSUFF'
+                : p.kind === 'unreliable'
+                  ? 'UNRELIABLE'
+                  : 'OK'
             return (
               <div
                 key={p.date}
@@ -233,7 +239,13 @@ export function MaintenanceTrendModule() {
                 <span style={{ color: p.maintenance == null ? 'var(--text-muted)' : 'var(--text-secondary)', textAlign: 'right' }}>
                   {p.maintenance == null ? '—' : `${p.maintenance}`}
                 </span>
-                <span style={{ color: outlier ? 'var(--amber)' : p.kind === 'ok' ? 'var(--accent-text)' : 'var(--text-muted)' }}>
+                <span
+                  style={{
+                    color: outlier ? 'var(--amber)' : p.kind === 'ok' ? 'var(--accent-text)' : 'var(--text-muted)',
+                    whiteSpace: 'nowrap',
+                    letterSpacing: '0.02em',
+                  }}
+                >
                   {status}
                 </span>
               </div>

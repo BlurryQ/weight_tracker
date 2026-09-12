@@ -1,6 +1,7 @@
 import { addDays, shortDate } from '../../lib/dates'
 import {
   ESTIMATE_WINDOW_DAYS,
+  computeMaintenanceHistory,
   estimateMaintenance,
   intakeAdjustment,
   targetIntake,
@@ -30,6 +31,14 @@ export function EnergyCard({ entries, nutrition, phaseLog, weeklyTargetLbs, toda
   const clampedAt =
     est.windowStart > addDays(today, -(ESTIMATE_WINDOW_DAYS - 1)) ? shortDate(est.windowStart) : null
   const windowLine = `${ESTIMATE_WINDOW_DAYS}-day window${clampedAt ? ` · clamped at ${clampedAt}` : ''}`
+
+  // Smoothed figure from Lab #8's outlier-aware rolling series — same method as that module's
+  // "Latest maint." readout (the most recent trend-set point; the trend set excludes both
+  // ungated windows and gated-but-series-outlier windows, e.g. a single water-weight-skewed
+  // week). Display-only: targetIntake/intakeAdjustment below still key off `est.maintenance`,
+  // the raw single-window figure, unchanged.
+  const { trend } = computeMaintenanceHistory(entries, nutrition, phaseLog, today)
+  const smoothed = trend.length >= 2 ? trend[trend.length - 1].maintenance : null
 
   return (
     <div style={{ marginTop: 16, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
@@ -64,9 +73,20 @@ export function EnergyCard({ entries, nutrition, phaseLog, weeklyTargetLbs, toda
               {kcal(est.maintenance)}
             </span>
             <span style={{ font: '500 11px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
-              cal/day to maintain
+              cal/day to maintain{smoothed != null ? ' · this window' : ''}
             </span>
           </div>
+
+          {smoothed != null && (
+            <div style={{ marginTop: 3, display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span style={{ font: '700 20px/1 "Barlow Condensed", sans-serif', color: 'var(--text-secondary)' }}>
+                {kcal(smoothed)}
+              </span>
+              <span style={{ font: '500 9.5px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+                cal/day trend · smoothed, {trend.length}-window series
+              </span>
+            </div>
+          )}
 
           {(() => {
             const target = targetIntake(est.maintenance, weeklyTargetLbs)
