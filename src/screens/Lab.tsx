@@ -1,4 +1,5 @@
 import { useApp } from '../store/AppContext'
+import { CurrentWindowModule } from './lab/CurrentWindowModule'
 import { MaintenanceTrendModule } from './lab/MaintenanceTrendModule'
 
 // The Lab screen — a staging area for analytics that aren't ready to graduate to their real
@@ -47,6 +48,10 @@ export function Lab() {
         Staging for new analytics. Raw numbers, no alerting — validating these before they move to
         Today or Trends.
       </div>
+
+      <section style={{ marginTop: 14, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
+        <CurrentWindowModule />
+      </section>
 
       <section style={{ marginTop: 14, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
         <MaintenanceTrendModule />
