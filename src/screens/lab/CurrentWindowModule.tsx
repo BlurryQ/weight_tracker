@@ -76,10 +76,10 @@ function WindowChart({
       {hasWeight && (
         <>
           <text x={padX} y={Math.max(8, yW(wHi) - 3)} fill="var(--text-dim)" style={{ font: `500 8px ${MONO}` }}>
-            {wHi.toFixed(1)}
+            max {wHi.toFixed(1)}
           </text>
           <text x={padX} y={Math.min(Hw - 2, yW(wLo) + 9)} fill="var(--text-dim)" style={{ font: `500 8px ${MONO}` }}>
-            {wLo.toFixed(1)}
+            min {wLo.toFixed(1)}
           </text>
           {fit && fitXRange && (
             <line
@@ -106,10 +106,10 @@ function WindowChart({
         {hasCal && (
           <>
             <text x={padX} y={Math.max(8, yC(cHi) - 3)} fill="var(--text-dim)" style={{ font: `500 8px ${MONO}` }}>
-              {Math.round(cHi)}
+              max {Math.round(cHi)}
             </text>
             <text x={padX} y={Math.min(Hc - 2, yC(cLo) + 9)} fill="var(--text-dim)" style={{ font: `500 8px ${MONO}` }}>
-              {Math.round(cLo)}
+              min {Math.round(cLo)}
             </text>
             {meanIntake != null && (
               <line
