@@ -6,10 +6,8 @@ import {
   currentDir,
   currentStreak,
   dedupePhaseLog,
-  detectPlateau,
   fitQualityLabel,
   fitSlope,
-  wasActivelyDieting,
   foldedWeeks,
   groupWeeksBySpan,
   hasFoldedWeek,
@@ -596,122 +594,6 @@ describe('paceLabel', () => {
     expect(paceLabel(0.1, 0)).toBe('on target')
     expect(paceLabel(0.6, 0)).toBe('gaining')
     expect(paceLabel(-0.6, 0)).toBe('losing')
-  })
-})
-
-describe('wasActivelyDieting', () => {
-  it('is false when either the intake or the maintenance estimate is missing', () => {
-    expect(wasActivelyDieting(null, 2300)).toBe(false)
-    expect(wasActivelyDieting(1800, null)).toBe(false)
-    expect(wasActivelyDieting(null, null)).toBe(false)
-  })
-
-  it('needs the intake/maintenance gap to clear the 150 kcal floor in either direction', () => {
-    expect(wasActivelyDieting(2151, 2300)).toBe(false) // 149 under — reads as maintaining
-    expect(wasActivelyDieting(2150, 2300)).toBe(true) // 150 under — a real deficit
-    expect(wasActivelyDieting(2650, 2300)).toBe(true) // 350 over — a real surplus
-  })
-
-  it('honours a custom floor', () => {
-    expect(wasActivelyDieting(2100, 2300, 250)).toBe(false)
-    expect(wasActivelyDieting(2100, 2300, 150)).toBe(true)
-  })
-})
-
-describe('detectPlateau', () => {
-  const mkWeekly = (lbs: number[]): { monday: string; lbs: number; n: number }[] =>
-    lbs.map((v, i) => ({ monday: addDays('2026-01-05', i * 7), lbs: v, n: 7 }))
-
-  it('does not flag a scale that is still moving', () => {
-    const res = detectPlateau({
-      weekly: mkWeekly([200, 199, 198, 197]),
-      avgIntake: 1800,
-      maintenance: 2300,
-      bodyWeightLbs: 197,
-    })
-    expect(res.kind).toBe('ok')
-    expect(res.recentRate).toBeCloseTo(-1, 6) // 197 − 198 over the last two weekly averages
-    expect(res.priorRate).toBeCloseTo(-1, 6) // 198 − 199, the two before those
-    expect(res.rateIsFlat).toBe(false)
-    expect(res.stalled).toBe(false)
-  })
-
-  it('flags a stall: flat scale while logged intake implies a real deficit', () => {
-    const res = detectPlateau({
-      weekly: mkWeekly([180.0, 180.0, 180.02, 180.0]),
-      avgIntake: 1800,
-      maintenance: 2300,
-      bodyWeightLbs: 180,
-    })
-    expect(res.rateIsFlat).toBe(true)
-    expect(res.activelyDieting).toBe(true)
-    expect(res.intakeGap).toBe(-500)
-    expect(res.stalled).toBe(true)
-  })
-
-  it('does NOT flag a flat scale when intake is at maintenance — intentional, not a plateau', () => {
-    const res = detectPlateau({
-      weekly: mkWeekly([180.0, 180.0, 180.02, 180.0]),
-      avgIntake: 2280,
-      maintenance: 2300,
-      bodyWeightLbs: 180,
-    })
-    expect(res.rateIsFlat).toBe(true) // scale is flat...
-    expect(res.activelyDieting).toBe(false) // ...but only a 20 kcal gap
-    expect(res.stalled).toBe(false)
-    expect(res.note).toMatch(/intentional/i)
-  })
-
-  it('scales the stall threshold to bodyweight, not a fixed lb figure', () => {
-    const light = detectPlateau({ weekly: mkWeekly([130, 130, 130, 130]), avgIntake: 1500, maintenance: 2000, bodyWeightLbs: 130 })
-    const heavy = detectPlateau({ weekly: mkWeekly([250, 250, 250, 250]), avgIntake: 2200, maintenance: 2800, bodyWeightLbs: 250 })
-    expect(light.stallThreshold).toBeCloseTo(0.13, 6)
-    expect(heavy.stallThreshold).toBeCloseTo(0.25, 6)
-
-    // A 0.2 lb/wk drift over the last two weekly averages is "flat" for the 250 lb person but
-    // not for the 130 lb person.
-    const drift = [0, 0, 0.2, 0]
-    const lightDrift = detectPlateau({ weekly: mkWeekly(drift.map((d) => 130 - d)), avgIntake: 1500, maintenance: 2000, bodyWeightLbs: 130 })
-    const heavyDrift = detectPlateau({ weekly: mkWeekly(drift.map((d) => 250 - d)), avgIntake: 2200, maintenance: 2800, bodyWeightLbs: 250 })
-    expect(Math.abs(lightDrift.recentRate!)).toBeCloseTo(0.2, 6)
-    expect(Math.abs(heavyDrift.recentRate!)).toBeCloseTo(0.2, 6)
-    expect(lightDrift.rateIsFlat).toBe(false)
-    expect(heavyDrift.rateIsFlat).toBe(true)
-  })
-
-  it('needs windowWeeks*2 weekly averages, otherwise reports insufficient', () => {
-    const res = detectPlateau({ weekly: mkWeekly([185, 184, 183]), avgIntake: 1800, maintenance: 2300, bodyWeightLbs: 183 })
-    expect(res.kind).toBe('insufficient')
-    expect(res.recentRate).toBeNull()
-    expect(res.stalled).toBeNull()
-    expect(res.note).toMatch(/4\+/)
-  })
-
-  it('honours a wider recent/prior window', () => {
-    const res = detectPlateau({
-      weekly: mkWeekly([190, 188, 186, 185]),
-      avgIntake: 1800,
-      maintenance: 2300,
-      bodyWeightLbs: 185,
-      windowWeeks: 2,
-    })
-    expect(res.recentRate).toBeCloseTo(-1, 6) // 185 − 186
-    expect(res.priorRate).toBeCloseTo(-2, 6) // 188 − 190
-  })
-
-  it('honours the tuning overrides', () => {
-    const res = detectPlateau({
-      weekly: mkWeekly([180.0, 180.0, 180.2, 180.0]),
-      avgIntake: 2100,
-      maintenance: 2300,
-      bodyWeightLbs: 180,
-      stallThresholdPct: 0.01, // 1.8 lb/wk floor — a −0.2 rate is well inside it
-      activeDietKcal: 250, // a 200 kcal gap no longer counts as active
-    })
-    expect(res.stallThreshold).toBeCloseTo(1.8, 6)
-    expect(res.rateIsFlat).toBe(true)
-    expect(res.activelyDieting).toBe(false)
-    expect(res.stalled).toBe(false)
   })
 })
 

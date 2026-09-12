@@ -2,12 +2,12 @@ import type { ReactNode } from 'react'
 import { useApp } from '../store/AppContext'
 import { AdherenceModule } from './lab/AdherenceModule'
 import { MaintenanceTrendModule } from './lab/MaintenanceTrendModule'
-import { PlateauModule } from './lab/PlateauModule'
 
 // The Lab screen — a staging area for analytics that aren't ready to graduate to their real
-// home on Today/Trends. Reached from a row on Setup, not a nav tab. Three numbered module
-// slots, numbered to match the design conversation (6 logging-accuracy, 7 plateau, 8 metabolic
-// adaptation). Everything is computed live from useApp() — no new persistence for this page.
+// home on Today/Trends. Reached from a row on Setup, not a nav tab. Numbered to match the
+// design conversation (6 logging-accuracy, 8 metabolic adaptation — #7 plateau detection was
+// tried and dropped, see git history). Everything is computed live from useApp() — no new
+// persistence for this page.
 
 const COND = '"Barlow Condensed", sans-serif'
 const MONO = '"IBM Plex Mono", monospace'
@@ -78,10 +78,6 @@ export function Lab() {
 
       <Slot bare>
         <AdherenceModule />
-      </Slot>
-
-      <Slot n="7" title="Plateau detection">
-        <PlateauModule />
       </Slot>
 
       <Slot bare>
