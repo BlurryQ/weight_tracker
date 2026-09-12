@@ -2,17 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { addDays, diffDays, mondayOf } from '../src/lib/dates'
 import {
   OUTLIER_MIN_GATED,
-  computeAdherence,
   computeMaintenanceHistory,
   estimateMaintenance,
-  findNearestGatedWindow,
   intakeAdjustment,
-  phaseKcalPerLb,
   targetIntake,
   weeklyKcal,
   type NutritionEntry,
 } from '../src/lib/energy'
-import { weeklyAverages, type Entry, type PhaseLogEntry } from '../src/lib/math'
+import { type Entry, type PhaseLogEntry } from '../src/lib/math'
 
 const TODAY = '2026-08-28'
 
@@ -324,144 +321,6 @@ describe('computeMaintenanceHistory — series outlier flag (#8)', () => {
     expect(h.trend).toEqual(h.gated)
   })
 
-  it('keeps an outlier out of adherence calc 2’s reference', () => {
-    const { entries, nutrition } = oneOutlier()
-    const h = computeMaintenanceHistory(entries, nutrition, [], TODAY)
-    const outlierDate = h.gated.find((p) => p.seriesFlag === 'outlier')!.date
-
-    const res = computeAdherence(entries, nutrition, [], weeklyAverages(entries), TODAY)
-    expect(res.calc2).not.toBeNull()
-    expect(res.calc2!.reference.date).not.toBe(outlierDate)
-    expect(h.trend.map((p) => p.date)).toContain(res.calc2!.reference.date)
-  })
-
-  it('keeps an outlier from spiking a neighbour’s divergence-history bar', () => {
-    // Consistent intake + steady loss -> real divergence is ~0 for every window. The only way a
-    // history bar spikes here is by referencing the flagged first window.
-    const { entries, nutrition } = oneOutlier()
-    const h = computeMaintenanceHistory(entries, nutrition, [], TODAY)
-    const res = computeAdherence(entries, nutrition, [], weeklyAverages(entries), TODAY)
-
-    expect(res.divergenceHistory.every((p) => Math.abs(p.divergence) < 0.15)).toBe(true)
-    // The first non-outlier window has no clean earlier reference, so it's dropped rather than
-    // scored against the flagged point.
-    expect(res.divergenceHistory.map((p) => p.date)).not.toContain(h.gated[1].date)
-
-    // A clean series keeps the full set (one entry per gated window after the first).
-    const clean = buildHistory(190, [{ days: 84, lbsPerWeek: -0.5, kcal: 3000 }])
-    const cleanRes = computeAdherence(clean.entries, clean.nutrition, [], weeklyAverages(clean.entries), TODAY)
-    const cleanHist = computeMaintenanceHistory(clean.entries, clean.nutrition, [], TODAY)
-    expect(cleanRes.divergenceHistory).toHaveLength(cleanHist.gated.length - 1)
-  })
-})
-
-describe('findNearestGatedWindow (#6 walk-back)', () => {
-  it('skips a lapse in the middle of history to reach the nearest gated window', () => {
-    // 45 clean days, then a 30-day lapse (no logging at all), then the current 28-day window.
-    const withGap = buildHistory(200, [
-      { days: 45, lbsPerWeek: -0.5, kcal: 2000 },
-      { days: 30, lbsPerWeek: -0.5, kcal: 2000, logged: false },
-      { days: 28, lbsPerWeek: -2.0, kcal: 2500 },
-    ])
-    const currentStart = addDays(TODAY, -27)
-    const ref = findNearestGatedWindow(withGap.entries, withGap.nutrition, [], currentStart)
-
-    expect(ref).not.toBeNull()
-    expect(ref!.estimate.kind).toBe('ok')
-    // Candidate window-ends sit on the Monday grid, strictly before the current window start.
-    expect(isMonday(ref!.date)).toBe(true)
-    expect(ref!.date < currentStart).toBe(true)
-    // Walked back past the entire 30-day lapse — well beyond the immediately-prior week.
-    expect(diffDays(ref!.date, TODAY)).toBeGreaterThan(40)
-    expect(ref!.estimate.maintenance).toBe(2250)
-
-    // Same history with the gap closed up: the nearest gated window ends on the last Monday
-    // before the current window starts.
-    const noGap = buildHistory(200, [
-      { days: 45, lbsPerWeek: -0.5, kcal: 2000 },
-      { days: 28, lbsPerWeek: -2.0, kcal: 2500 },
-    ])
-    const near = findNearestGatedWindow(noGap.entries, noGap.nutrition, [], currentStart)
-    expect(near!.date).toBe(mondayOf(addDays(currentStart, -1)))
-  })
-
-  it('returns null on a first-ever eligible window (no gated prior window anywhere)', () => {
-    const { entries, nutrition } = buildHistory(185, [{ days: 28, lbsPerWeek: -0.5, kcal: 2000 }])
-    expect(findNearestGatedWindow(entries, nutrition, [], addDays(TODAY, -27))).toBeNull()
-  })
-})
-
-describe('computeAdherence (#6 logging accuracy)', () => {
-  it('reports "not enough data" when no gated prior window exists yet', () => {
-    const { entries, nutrition } = buildHistory(185, [{ days: 28, lbsPerWeek: -0.5, kcal: 2000 }])
-    const res = computeAdherence(entries, nutrition, [], weeklyAverages(entries), TODAY)
-
-    expect(res.applicable).toBe(false)
-    expect(res.live).toBeNull()
-    expect(res.calc1).toBeNull()
-    expect(res.calc2).toBeNull()
-  })
-
-  it('never references the window under evaluation — divergence does not collapse to zero', () => {
-    // Under-logging: the log says 2500 kcal/day, the scale says a ~2 lb/wk loss. A clean prior
-    // window ate 2000 losing 0.5 lb/wk -> reference maintenance 2250.
-    const { entries, nutrition } = buildHistory(210, [
-      { days: 45, lbsPerWeek: -0.5, kcal: 2000 },
-      { days: 30, lbsPerWeek: -0.5, kcal: 2000, logged: false },
-      { days: 28, lbsPerWeek: -2.0, kcal: 2500 },
-    ])
-    const res = computeAdherence(entries, nutrition, [], weeklyAverages(entries), TODAY)
-
-    expect(res.currentEst.kind).toBe('ok')
-    expect(res.calc1).not.toBeNull()
-    const c1 = res.calc1!
-    // Reference is a genuinely earlier, disjoint window — not this one.
-    expect(c1.reference.maintenance).toBe(2250)
-    expect(c1.reference.windowStart).not.toBe(res.currentEst.windowStart)
-    expect(c1.reference.date < res.currentEst.windowStart).toBe(true)
-
-    // The log predicts a slight *gain*; the scale shows a fast loss -> large negative divergence.
-    expect(c1.predictedRate).toBeGreaterThan(0)
-    expect(c1.divergence).toBeLessThan(-1.8)
-
-    // Had the calc (wrongly) referenced this same window's own estimate, predictedRate would
-    // equal actualRate by construction and divergence would be ~0.
-    const selfPredicted = ((c1.avgLoggedIntake - (res.currentEst.maintenance as number)) / c1.kcalPerLb) * 7
-    expect(Math.abs(c1.actualRate - selfPredicted)).toBeLessThan(0.5)
-  })
-
-  it('falls back to calc 1 when the rolling series has < 2 gated points, else prefers calc 2', () => {
-    // A narrow 22-day clean band, a 34-day lapse, then a 14-day current stretch. Only one
-    // rolling-series sample lands a full gated window before today -> calc 2 unavailable, but
-    // the day-granular walk-back still reaches a gated window -> calc 1 applies.
-    const thin = buildHistory(200, [
-      { days: 22, lbsPerWeek: -0.5, kcal: 2000 },
-      { days: 34, lbsPerWeek: -0.5, kcal: 2000, logged: false },
-      { days: 14, lbsPerWeek: -0.5, kcal: 2000 },
-    ])
-    const thinRes = computeAdherence(thin.entries, thin.nutrition, [], weeklyAverages(thin.entries), TODAY)
-    expect(thinRes.calc1).not.toBeNull()
-    expect(thinRes.calc2).toBeNull()
-    expect(thinRes.live).toBe('calc1')
-
-    // A long, unbroken history — plenty of gated series points -> calc 2 is live.
-    const full = buildHistory(210, [{ days: 90, lbsPerWeek: -0.5, kcal: 2000 }])
-    const fullRes = computeAdherence(full.entries, full.nutrition, [], weeklyAverages(full.entries), TODAY)
-    expect(fullRes.calc2).not.toBeNull()
-    expect(fullRes.calc2!.reference.source).toBe('maintenance-series')
-    expect(fullRes.live).toBe('calc2')
-  })
-})
-
-describe('phaseKcalPerLb', () => {
-  it('keys off the logged phase direction, not the scale sign', () => {
-    const bulk: PhaseLogEntry[] = [{ start: '2026-06-01', name: 'Bulk' }]
-    expect(phaseKcalPerLb(bulk, TODAY, -5)).toBe(3100) // Bulk span, scale drifting down -> gain density
-    expect(phaseKcalPerLb([{ start: '2026-06-01', name: 'Cut' }], TODAY, 5)).toBe(3500)
-    // No phase history at all: fall back to the observed direction.
-    expect(phaseKcalPerLb([], TODAY, 2)).toBe(3100)
-    expect(phaseKcalPerLb([], TODAY, -2)).toBe(3500)
-  })
 })
 
 describe('weeklyKcal', () => {

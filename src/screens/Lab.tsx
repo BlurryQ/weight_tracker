@@ -1,42 +1,14 @@
-import type { ReactNode } from 'react'
 import { useApp } from '../store/AppContext'
-import { AdherenceModule } from './lab/AdherenceModule'
 import { MaintenanceTrendModule } from './lab/MaintenanceTrendModule'
 
 // The Lab screen — a staging area for analytics that aren't ready to graduate to their real
 // home on Today/Trends. Reached from a row on Setup, not a nav tab. Numbered to match the
-// design conversation (6 logging-accuracy, 8 metabolic adaptation — #7 plateau detection was
-// tried and dropped, see git history). Everything is computed live from useApp() — no new
-// persistence for this page.
+// design conversation — #8 metabolic adaptation is what's left; #6 logging-accuracy and #7
+// plateau detection were both tried and dropped, see git history. Everything is computed live
+// from useApp() — no new persistence for this page.
 
-const COND = '"Barlow Condensed", sans-serif'
 const MONO = '"IBM Plex Mono", monospace'
-
-/** One module card. Slot 7's header is drawn here; slots 6 and 8 use `bare` because
- * AdherenceModule / MaintenanceTrendModule each carry their own matching number+title header
- * internally (per Energy Lab's brief) — a shared header row here would double it. */
-function Slot({ n, title, bare, children }: { n?: string; title?: string; bare?: boolean; children: ReactNode }) {
-  return (
-    <section style={{ marginTop: 14, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
-      {!bare && (
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ font: `700 15px/1 ${COND}`, color: 'var(--accent)' }}>{n}</span>
-          <span
-            style={{
-              font: `600 9px/1 ${COND}`,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
-              color: 'var(--text-dim)',
-            }}
-          >
-            {title}
-          </span>
-        </div>
-      )}
-      <div style={bare ? undefined : { marginTop: 12 }}>{children}</div>
-    </section>
-  )
-}
+const COND = '"Barlow Condensed", sans-serif'
 
 export function Lab() {
   const { dispatch } = useApp()
@@ -76,13 +48,9 @@ export function Lab() {
         Today or Trends.
       </div>
 
-      <Slot bare>
-        <AdherenceModule />
-      </Slot>
-
-      <Slot bare>
+      <section style={{ marginTop: 14, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
         <MaintenanceTrendModule />
-      </Slot>
+      </section>
     </div>
   )
 }
