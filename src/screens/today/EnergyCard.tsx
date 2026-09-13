@@ -96,18 +96,21 @@ export function EnergyCard({ entries, nutrition, phaseLog, weeklyTargetLbs, toda
                   : `add ~${kcal(adj)}/day to your recent ${kcal(est.meanIntake ?? 0)}`
             return (
               <>
-                <div style={{ marginTop: 10, display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <span
-                    style={{
-                      font: '700 36px/1 "Barlow Condensed", sans-serif',
-                      color: !usingSmoothed && est.kind === 'unreliable' ? 'var(--text-dim)' : 'var(--text-primary)',
-                    }}
-                  >
-                    {kcal(primary)}
-                  </span>
-                  <span style={{ font: '500 11px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
-                    {usingSmoothed ? `cal/day to maintain · smoothed, ${trend.length}-window series` : 'cal/day to maintain'}
-                  </span>
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                    <span
+                      style={{
+                        font: '700 36px/1 "Barlow Condensed", sans-serif',
+                        color: !usingSmoothed && est.kind === 'unreliable' ? 'var(--text-dim)' : 'var(--text-primary)',
+                      }}
+                    >
+                      {kcal(primary)}
+                    </span>
+                    <span style={{ font: '500 11px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>cal/day</span>
+                  </div>
+                  <div style={{ marginTop: 2, font: '500 9.5px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+                    {usingSmoothed ? `to maintain · smoothed, ${trend.length}-window series` : 'to maintain'}
+                  </div>
                 </div>
 
                 {secondary != null && (
