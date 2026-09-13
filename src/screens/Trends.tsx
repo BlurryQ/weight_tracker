@@ -17,6 +17,7 @@ import {
   type PhaseAnchorMode,
   type SignColor,
 } from '../lib/math'
+import { useState } from 'react'
 import { useApp } from '../store/AppContext'
 import type { TrendWindow } from '../store/types'
 import { WeightChart } from '../components/chart/WeightChart'
@@ -33,7 +34,8 @@ const WINDOW_OPTIONS: { value: TrendWindow | 'phase'; label: string }[] = [
   { value: 8, label: '8W' },
   { value: 13, label: '3M' },
   { value: 26, label: '6M' },
-  { value: 99, label: 'ALL' },
+  { value: 52, label: '1Y' },
+  { value: 99, label: 'ALLTIME' },
   { value: 'phase', label: 'PHASE' },
 ]
 
@@ -41,6 +43,47 @@ const ANCHOR_LABELS: Record<PhaseAnchorMode, string> = {
   phaseStart: 'this phase',
   lastDeload: 'last deload',
   lastMaintain: 'last maintain',
+}
+
+/** PHASE mode's fit-span choice: 'recent' keeps the fit capped at 13 trailing weeks so it
+ * reflects current pace; 'wholePhase' fits every displayed (i.e. current-phase) point instead —
+ * see the fitK computation in Trends() for exactly how each maps to a fit length. Local UI state
+ * only, deliberately not persisted — see the module-level comment on FIT_SPAN_LABELS' consumer. */
+type FitSpanMode = 'recent' | 'wholePhase'
+
+const FIT_SPAN_LABELS: Record<FitSpanMode, string> = {
+  recent: 'recent',
+  wholePhase: 'whole phase',
+}
+
+/** A thin single-line fit-span picker — same visual pattern as PhaseAnchorLine, appears only
+ * alongside it in PHASE mode. Lets the fit line switch between the capped-at-13-week "recent"
+ * rate (the default, matching every other window chip's intent) and an uncapped fit over the
+ * entire current phase. */
+function FitSpanLine({ mode, onChange }: { mode: FitSpanMode; onChange: (mode: FitSpanMode) => void }) {
+  const modes = ['recent', 'wholePhase'] as const
+
+  return (
+    <div style={{ marginTop: 6, display: 'flex', alignItems: 'baseline', gap: 5, lineHeight: '18px', whiteSpace: 'nowrap' }}>
+      <span style={{ font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>fit:</span>
+      {modes.map((m, i) => (
+        <span key={m} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>
+          <button
+            type="button"
+            onClick={() => onChange(m)}
+            style={{
+              cursor: 'pointer',
+              font: mode === m ? '700 10px "IBM Plex Mono", monospace' : '500 10px "IBM Plex Mono", monospace',
+              color: mode === m ? 'var(--accent)' : 'var(--text-dim)',
+            }}
+          >
+            {FIT_SPAN_LABELS[m]}
+          </button>
+          {i < modes.length - 1 && <span style={{ color: 'var(--text-dim)' }}>·</span>}
+        </span>
+      ))}
+    </div>
+  )
 }
 
 /** A thin single-line anchor picker — appears only while PHASE is the active window segment.
@@ -106,13 +149,20 @@ export function Trends() {
   const { entries, phase, phaseLog, unit, trendWindow, trendWindowMode, solveMode, targetLbs, targetWeeks } = state
   const today = todayIso()
 
+  // Local-only: which fit span PHASE mode uses. Not persisted (no store field, no localStorage/
+  // Supabase key) — resets to 'recent' on every mount, matching every window chip's default fit
+  // behavior unless the user actively opts into 'wholePhase' this session.
+  const [fitSpanMode, setFitSpanMode] = useState<FitSpanMode>('recent')
+
   const weekly = weeklyAverages(entries)
   const dir = currentDir(phase, phaseLog)
   const spans = phaseSpans(phaseLog)
 
   // The main chart's window: either the fixed chip count, or a span anchored to a phase-log
   // event (see phaseAnchoredShowN). fitK follows the same halving rule either way, capped at 13
-  // under phase-anchor mode so the fit line stays recent rather than spanning a whole cut/bulk.
+  // under phase-anchor mode so the fit line stays recent rather than spanning a whole cut/bulk —
+  // unless fitSpanMode is 'wholePhase', which drops both the halving and the cap entirely and
+  // fits every displayed (i.e. current-phase) point instead.
   const showN =
     trendWindowMode === 'weeks' ? trendWindow : phaseAnchoredShowN(weekly, phaseLog, trendWindowMode)
   const fitK =
@@ -120,7 +170,9 @@ export function Trends() {
       ? trendWindow === 99
         ? weekly.length
         : Math.max(4, Math.round(trendWindow / 2))
-      : Math.min(13, Math.max(4, Math.round(showN / 2)))
+      : fitSpanMode === 'wholePhase'
+        ? showN
+        : Math.min(13, Math.max(4, Math.round(showN / 2)))
 
   // Reach tracks the selected window's own slope — the same phase-scoped fit the FIT SLOPE card
   // and the chart's trend line use (geometry.slope) — rather than a fixed 4-week rate, so the
@@ -237,13 +289,16 @@ export function Trends() {
         />
       </div>
 
-      {/* Collapses away entirely (no reserved space) outside PHASE mode. */}
+      {/* Both collapse away entirely (no reserved space) outside PHASE mode. */}
       {trendWindowMode !== 'weeks' && (
-        <PhaseAnchorLine
-          mode={trendWindowMode}
-          onChange={(mode) => dispatch({ type: 'SET_TREND_WINDOW_MODE', mode })}
-          available={anchorAvailable}
-        />
+        <>
+          <PhaseAnchorLine
+            mode={trendWindowMode}
+            onChange={(mode) => dispatch({ type: 'SET_TREND_WINDOW_MODE', mode })}
+            available={anchorAvailable}
+          />
+          <FitSpanLine mode={fitSpanMode} onChange={setFitSpanMode} />
+        </>
       )}
 
       <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>

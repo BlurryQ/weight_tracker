@@ -4,7 +4,7 @@ import type { Entry, PhaseLogEntry, PhaseName, TrendWindowMode } from '../lib/ma
 export type Screen = 'today' | 'trends' | 'history' | 'setup' | 'lab'
 export type Unit = 'lb' | 'kg'
 export type SolveMode = 'weight' | 'date'
-export type TrendWindow = 8 | 13 | 26 | 99
+export type TrendWindow = 8 | 13 | 26 | 52 | 99
 export type { TrendWindowMode }
 
 /** State persisted to local cache and, once synced, to Supabase. */
