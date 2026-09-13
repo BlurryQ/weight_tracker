@@ -15,6 +15,29 @@ async function requireSession() {
   return data.session
 }
 
+// Supabase/PostgREST caps an unranged select at a project-configured max-rows (commonly 1000).
+// Ordered ascending with no explicit range, an oversized table would silently come back
+// truncated to its *oldest* rows — the newest entries (today's weigh-in included) would just
+// vanish from the app with no error. Paginating explicitly makes fetchAll correct regardless of
+// table size or that project setting, rather than depending on staying under it forever.
+const FETCH_PAGE_SIZE = 1000
+
+async function fetchAllRows<T>(table: string, columns: string, orderColumn: string): Promise<T[]> {
+  const rows: T[] = []
+  for (let offset = 0; ; offset += FETCH_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from(table)
+      .select(columns)
+      .order(orderColumn, { ascending: true })
+      .range(offset, offset + FETCH_PAGE_SIZE - 1)
+    if (error) throw error
+    if (!data || data.length === 0) break
+    rows.push(...(data as T[]))
+    if (data.length < FETCH_PAGE_SIZE) break
+  }
+  return rows
+}
+
 export async function upsertEntry(date: string, lbs: number): Promise<void> {
   if (!supabaseConfigured) return
   const { error } = await supabase.from('entries').upsert({ date, lbs }, { onConflict: 'user_id,date' })
@@ -67,15 +90,12 @@ export async function fetchAll(): Promise<RemoteSnapshot | null> {
   const session = await requireSession()
   if (!session) return null
 
-  const [entriesRes, nutritionRes, phaseLogRes, settingsRes] = await Promise.all([
-    supabase.from('entries').select('date, lbs').order('date', { ascending: true }),
-    supabase.from('daily_nutrition').select('date, kcal').order('date', { ascending: true }),
-    supabase.from('phase_log').select('start, name').order('start', { ascending: true }),
+  const [entryRows, nutritionRows, phaseLogRows, settingsRes] = await Promise.all([
+    fetchAllRows<{ date: string; lbs: number }>('entries', 'date, lbs', 'date'),
+    fetchAllRows<{ date: string; kcal: number }>('daily_nutrition', 'date, kcal', 'date'),
+    fetchAllRows<{ start: string; name: PhaseLogEntry['name'] }>('phase_log', 'start, name', 'start'),
     supabase.from('settings').select('*').maybeSingle(),
   ])
-  if (entriesRes.error) throw entriesRes.error
-  if (nutritionRes.error) throw nutritionRes.error
-  if (phaseLogRes.error) throw phaseLogRes.error
   if (settingsRes.error) throw settingsRes.error
 
   const settingsRow = settingsRes.data
@@ -94,9 +114,9 @@ export async function fetchAll(): Promise<RemoteSnapshot | null> {
     : null
 
   return {
-    entries: (entriesRes.data ?? []).map((r) => ({ date: r.date, lbs: r.lbs })),
-    nutrition: (nutritionRes.data ?? []).map((r) => ({ date: r.date, kcal: r.kcal })),
-    phaseLog: (phaseLogRes.data ?? []).map((r) => ({ start: r.start, name: r.name })),
+    entries: entryRows.map((r) => ({ date: r.date, lbs: r.lbs })),
+    nutrition: nutritionRows.map((r) => ({ date: r.date, kcal: r.kcal })),
+    phaseLog: phaseLogRows.map((r) => ({ start: r.start, name: r.name })),
     settings,
   }
 }
