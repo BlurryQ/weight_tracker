@@ -7,7 +7,6 @@ import { RateBar } from './today/RateBar'
 import { DayStrip } from './today/DayStrip'
 import { EnergyCard } from './today/EnergyCard'
 import { StatCards } from './today/StatCards'
-import { WeeklyChangeBars } from './today/WeeklyChangeBars'
 
 const SIGN_COLOR = { lime: 'var(--sign-good)', red: 'var(--sign-bad)', grey: 'var(--text-muted)' } as const
 
@@ -134,8 +133,6 @@ export function Today() {
           unit={unit}
         />
       </div>
-
-      <WeeklyChangeBars weekly={weekly} dir={dir} />
 
       <EnergyCard
         entries={entries}
