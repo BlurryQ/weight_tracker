@@ -69,7 +69,8 @@ src/
 tests/        vitest, run against a fixture of 317 real weigh-ins (tests/fixtures/weight-data.ts)
 supabase/
   migrations/ 0001 schema (entries, phase_log, settings + RLS), 0004 daily_nutrition,
-              0006-0007 Trends' phase-anchored window mode, 0008 drops dead columns
+              0006-0007 Trends' phase-anchored window mode, 0008 drops dead columns,
+              0009 allows trend_window = 52 (the 1Y chip)
 android/      Capacitor-generated native project
 ```
 

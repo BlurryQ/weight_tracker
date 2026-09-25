@@ -1,5 +1,6 @@
 import type { NutritionEntry } from '../lib/energy'
 import type { Entry, PhaseLogEntry } from '../lib/math'
+import type { PostgrestError } from '@supabase/supabase-js'
 import { supabase, supabaseConfigured } from './supabaseClient'
 import type { SettingsPayload } from './queue'
 
@@ -38,35 +39,41 @@ async function fetchAllRows<T>(table: string, columns: string, orderColumn: stri
   return rows
 }
 
+/** supabase-js returns the HTTP status beside the error, not on it; sync.ts needs it to tell a
+ * permanently rejected write (4xx) from a transient one, so carry it on the thrown error. */
+function fail(error: PostgrestError, status: number): never {
+  throw Object.assign(error, { status })
+}
+
 export async function upsertEntry(date: string, lbs: number): Promise<void> {
   if (!supabaseConfigured) return
-  const { error } = await supabase.from('entries').upsert({ date, lbs }, { onConflict: 'user_id,date' })
-  if (error) throw error
+  const { error, status } = await supabase.from('entries').upsert({ date, lbs }, { onConflict: 'user_id,date' })
+  if (error) fail(error, status)
 }
 
 export async function deleteEntry(date: string): Promise<void> {
   if (!supabaseConfigured) return
-  const { error } = await supabase.from('entries').delete().eq('date', date)
-  if (error) throw error
+  const { error, status } = await supabase.from('entries').delete().eq('date', date)
+  if (error) fail(error, status)
 }
 
 export async function upsertDailyNutrition(date: string, kcal: number): Promise<void> {
   if (!supabaseConfigured) return
-  const { error } = await supabase
+  const { error, status } = await supabase
     .from('daily_nutrition')
     .upsert({ date, kcal }, { onConflict: 'user_id,date' })
-  if (error) throw error
+  if (error) fail(error, status)
 }
 
 export async function upsertPhaseLogEntry(start: string, name: PhaseLogEntry['name']): Promise<void> {
   if (!supabaseConfigured) return
-  const { error } = await supabase.from('phase_log').upsert({ start, name }, { onConflict: 'user_id,start' })
-  if (error) throw error
+  const { error, status } = await supabase.from('phase_log').upsert({ start, name }, { onConflict: 'user_id,start' })
+  if (error) fail(error, status)
 }
 
 export async function upsertSettings(settings: SettingsPayload): Promise<void> {
   if (!supabaseConfigured) return
-  const { error } = await supabase.from('settings').upsert(
+  const { error, status } = await supabase.from('settings').upsert(
     {
       phase: settings.phase,
       phase_start: settings.phaseStart,
@@ -80,7 +87,7 @@ export async function upsertSettings(settings: SettingsPayload): Promise<void> {
     },
     { onConflict: 'user_id' },
   )
-  if (error) throw error
+  if (error) fail(error, status)
 }
 
 /** Fetches entries + phase log + settings in parallel. Returns null if not configured or not

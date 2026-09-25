@@ -1,6 +1,7 @@
 import { diffDays, mondayOf, shortDate, today as todayIso } from '../lib/dates'
 import { formatWeight, sgn, toDisplay, unitLabel } from '../lib/format'
 import { avg, currentDir, currentStreak, fitSlope, lastCompletedWeek, signColor, weeklyAverages } from '../lib/math'
+import { deadLetterCount } from '../data/queue'
 import { useApp } from '../store/AppContext'
 import { Chip } from '../components/ui/Chip'
 import { RateBar } from './today/RateBar'
@@ -22,8 +23,10 @@ const CHIP_COLORS = {
 
 export function Today() {
   const { state, dispatch } = useApp()
-  const { entries, nutrition, phase, phaseStart, phaseLog, weeklyTarget, unit } = state
+  const { entries, nutrition, phase, phaseStart, phaseLog, weeklyTarget, unit, syncFailed, pullFailed } = state
   const today = todayIso()
+  const stuck = deadLetterCount()
+  const syncBad = syncFailed || pullFailed || stuck > 0
 
   if (entries.length === 0) {
     return (
@@ -76,7 +79,19 @@ export function Today() {
           onClick={() => dispatch({ type: 'SET_SCREEN', screen: 'setup' })}
           className="accent-el"
         />
-        <span style={{ font: '500 11px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>{shortDate(today)}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span
+            title={syncBad ? `Sync issue${stuck ? ` (${stuck} stuck)` : ''}` : 'Synced'}
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: syncBad ? 'var(--sign-bad)' : 'var(--sign-good)',
+              display: 'inline-block',
+            }}
+          />
+          <span style={{ font: '500 11px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>{shortDate(today)}</span>
+        </span>
       </div>
 
       <div style={{ marginTop: 8, font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
