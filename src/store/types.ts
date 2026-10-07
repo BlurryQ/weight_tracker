@@ -10,8 +10,8 @@ export type { TrendWindowMode }
 /** State persisted to local cache and, once synced, to Supabase. */
 export interface PersistedState {
   entries: Entry[]
-  /** Daily calories-consumed totals from Health Connect (MyFitnessPal writes them there).
-   * Read-through cache of the `daily_nutrition` table; empty on platforms without Health
+  /** Daily calories-consumed totals from Health Connect (your calorie-tracking app writes them
+   * there). Read-through cache of the `daily_nutrition` table; empty on platforms without Health
    * Connect. */
   nutrition: NutritionEntry[]
   phase: PhaseName

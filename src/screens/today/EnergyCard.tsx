@@ -66,7 +66,7 @@ export function EnergyCard({ entries, nutrition, phaseLog, weeklyTargetLbs, toda
         <div style={{ marginTop: 10, font: '500 11px/1.6 "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
           {est.note}
           <br />
-          Needs ~2 weeks of overlapping weigh-ins and MyFitnessPal days in the current phase.
+          Needs ~2 weeks of overlapping weigh-ins and Health Connect days in the current phase.
           <br />
           <span style={{ color: 'var(--text-muted)' }}>{windowLine}</span>
         </div>

@@ -41,7 +41,7 @@ function plainSgn(value: number, decimals = 1): string {
  *   Target Rate: -1.0 lb/wk
  *   Mon: 183.4 | Tue: 183.2 | Wed: 183.6 | Thu: 183.0 | Fri: -- | Sat: -- | Sun: --
  *
- * When the week has any MyFitnessPal calorie data, two more lines are woven in — an average
+ * When the week has any Health Connect calorie data, two more lines are woven in — an average
  * under the weight average, and a per-day `Cals:` line under the weight days line:
  *
  *   WC 24/08
@@ -108,7 +108,7 @@ export function isPlausibleWeight(value: number, unit: Unit): boolean {
 }
 
 /** '2,010' — thousands-separated. Anything without a positive total (null / 0 / undefined —
- * a week or day MyFitnessPal never logged) renders as an em dash, never '0'. */
+ * a week or day Health Connect never logged) renders as an em dash, never '0'. */
 export function formatKcal(kcal: number | null | undefined): string {
   if (kcal == null || !(kcal > 0)) return '—'
   return Math.round(kcal).toLocaleString('en-US')

@@ -130,8 +130,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   // Pull recent daily calorie totals out of Health Connect on boot and whenever the app comes
-  // back to the foreground (MyFitnessPal may have logged more since). Goes through the custom
-  // `dispatch` so changed days are queued to Supabase. No-op off Android.
+  // back to the foreground (your calorie-tracking app may have logged more since). Goes through
+  // the custom `dispatch` so changed days are queued to Supabase. No-op off Android.
   useEffect(() => {
     const run = () => void syncHealthConnect(stateRef.current.nutrition, dispatch)
     run()

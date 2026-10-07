@@ -61,7 +61,7 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Read calories-consumed totals that MyFitnessPal writes into Health Connect. -->
+    <!-- Read calories-consumed totals that your calorie-tracking app writes into Health Connect. -->
     <uses-permission android:name="android.permission.health.READ_NUTRITION" />
 
     <!-- Lets the app detect / deep-link to the Health Connect app. -->

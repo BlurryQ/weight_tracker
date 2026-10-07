@@ -315,14 +315,15 @@ export function Setup() {
               )}
             </div>
             <div style={{ marginTop: 8, font: '500 10px/1.5 "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
-              Reads your daily calorie totals from Health Connect, which MyFitnessPal writes to.
-              Powers maintenance and target-intake on Trends, and the per-day figures in History.
+              Reads your daily calorie totals from Health Connect — the system-level store that
+              your calorie-tracking app (Cronometer, Lose It!, etc.) writes to. Powers
+              maintenance and target-intake on Trends, and the per-day figures in History.
             </div>
           </>
         ) : (
           <div style={{ marginTop: 8, font: '500 10px/1.5 "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
-            Android only — calories sync from MyFitnessPal through Health Connect, which isn't
-            available on this platform.
+            Android only — calories sync from your calorie-tracking app through Health Connect,
+            which isn't available on this platform.
           </div>
         )}
       </div>
@@ -349,7 +350,7 @@ export function Setup() {
           <DataStat label="Calorie days" value={String(nutrition.length)} />
         </div>
         {/* SOURCE ROW SLOT — e9 firms up the calorie-days wording and adds a "source" row here
-            (Health Connect / MyFitnessPal), once that lands. */}
+            (which calorie-tracking app fed Health Connect), once that lands. */}
         <div style={{ marginTop: 10, font: '500 10px/1.5 "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
           Synced to Supabase when online, cached locally otherwise.
         </div>

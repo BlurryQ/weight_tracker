@@ -4,7 +4,7 @@ import type { NutritionEntry } from '../lib/energy'
 import type { Action } from '../store/reducer'
 
 /** Days of history re-read from Health Connect on each app open. Health Connect only retains
- * ~30 days on-device; older days come from the one-time MyFitnessPal backfill in Supabase. */
+ * ~30 days on-device; older days come from the one-time historical backfill in Supabase. */
 const LOOKBACK_DAYS = 35
 
 /** Bridge to the local Kotlin plugin (android/app/src/main/java/.../HealthConnectPlugin.kt).

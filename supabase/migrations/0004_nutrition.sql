@@ -1,5 +1,5 @@
--- Daily calories-consumed totals, one row per day, sourced from Health Connect (which
--- MyFitnessPal writes into). Health Connect only retains ~30 days locally, so the app copies
+-- Daily calories-consumed totals, one row per day, sourced from Health Connect (which your
+-- calorie-tracking app writes into). Health Connect only retains ~30 days locally, so the app copies
 -- each day's total in here as it reads it — this table is the durable history.
 --
 -- Same shape and RLS model as `entries`: one row per (user_id, date), scoped to auth.uid().

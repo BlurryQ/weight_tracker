@@ -21,7 +21,7 @@ interface WeekRowProps {
   open: boolean
   onToggle: () => void
   entries: Entry[]
-  /** Mean daily calories for this week, or null if MyFitnessPal logged nothing. */
+  /** Mean daily calories for this week, or null if Health Connect logged nothing. */
   weekKcal: number | null
   /** Every daily calorie total (all weeks) — the expanded day list looks up its own dates. */
   nutrition: NutritionEntry[]
