@@ -17,6 +17,9 @@ interface EnergyCardProps {
   phaseLog: PhaseLogEntry[]
   weeklyTargetLbs: number
   today: string
+  /** Opens Trends in Energy mode so the headline number above can be checked by hand — the
+   * module behind it (CurrentWindowModule/MaintenanceTrendModule) now lives there. */
+  onSeeCalculation: () => void
 }
 
 /** Adaptive-TDEE / calorie-target card. Three states off `estimateMaintenance`:
@@ -25,7 +28,7 @@ interface EnergyCardProps {
  *    change — copy must not read as first-run-only.
  *  - `unreliable`: shows the number dimmed + a "treat with caution" tag.
  *  - `ok`: number + target intake + a "trim/add" or "about where you are now" line. */
-export function EnergyCard({ entries, nutrition, phaseLog, weeklyTargetLbs, today }: EnergyCardProps) {
+export function EnergyCard({ entries, nutrition, phaseLog, weeklyTargetLbs, today, onSeeCalculation }: EnergyCardProps) {
   const est = estimateMaintenance(entries, nutrition, phaseLog, today)
 
   const clampedAt =
@@ -139,6 +142,28 @@ export function EnergyCard({ entries, nutrition, phaseLog, weeklyTargetLbs, toda
             <br />
             {windowLine}
           </div>
+
+          <button
+            type="button"
+            onClick={onSeeCalculation}
+            style={{
+              display: 'block',
+              marginTop: 10,
+              padding: '10px 0 0',
+              border: 'none',
+              borderTop: '1px solid var(--divider)',
+              width: '100%',
+              textAlign: 'left',
+              cursor: 'pointer',
+              background: 'transparent',
+              font: '600 9.5px/1 "IBM Plex Mono", monospace',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--accent)',
+            }}
+          >
+            See how this is calculated ›
+          </button>
         </>
       )}
     </div>

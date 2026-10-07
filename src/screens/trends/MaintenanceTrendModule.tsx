@@ -4,10 +4,13 @@ import {
   ESTIMATE_WINDOW_DAYS,
   MAINTENANCE_HISTORY_STEP_DAYS,
   computeMaintenanceHistory,
+  estimateMaintenance,
   type InsufficientReason,
+  type NutritionEntry,
 } from '../../lib/energy'
-import { leastSquaresFit } from '../../lib/math'
+import { leastSquaresFit, type Entry, type PhaseLogEntry } from '../../lib/math'
 import { useApp } from '../../store/AppContext'
+import { WindowBreakdown } from './CurrentWindowModule'
 
 /** Compact have/need tag for the series table's status cell — e.g. "8/14 CAL". The clamp detail
  * and full sentence live only in the row's title attribute (via `p.note`), not inline — a phase
@@ -126,9 +129,27 @@ function SeriesChart({ points, today }: { points: ChartPoint[]; today: string })
   )
 }
 
+/** A tapped series row's own window, recomputed on demand (cheap — one more estimateMaintenance
+ * call) and rendered through the same WindowBreakdown CurrentWindowModule uses for today's
+ * window, just anchored to this row's own date instead. */
+function ExpandedWindow({
+  date,
+  entries,
+  nutrition,
+  phaseLog,
+}: {
+  date: string
+  entries: Entry[]
+  nutrition: NutritionEntry[]
+  phaseLog: PhaseLogEntry[]
+}) {
+  const est = estimateMaintenance(entries, nutrition, phaseLog, date)
+  return <WindowBreakdown est={est} windowEnd={date} entries={entries} nutrition={nutrition} phaseLog={phaseLog} />
+}
+
 export function MaintenanceTrendModule() {
-  const { state } = useApp()
-  const { entries, nutrition, phaseLog } = state
+  const { state, dispatch } = useApp()
+  const { entries, nutrition, phaseLog, openMaintenanceWindow } = state
   const today = todayIso()
 
   const [stepDays, setStepDays] = useState(MAINTENANCE_HISTORY_STEP_DAYS)
@@ -208,7 +229,7 @@ export function MaintenanceTrendModule() {
           `Series · ${points.length} windows, ${gated.length} gated` +
             (outlierCount ? `, ${outlierCount} outlier` : ''),
         )}
-        <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: 'auto auto 1fr', gap: '3px 12px', font: `500 10px/1.5 ${MONO}` }}>
+        <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: 'auto auto 1fr auto', gap: '3px 10px', font: `500 10px/1.5 ${MONO}` }}>
           {points.map((p) => {
             const outlier = p.kind === 'ok' && p.seriesFlag === 'outlier'
             // Short, fixed-width-ish tag for the always-visible cell — the full sentence (incl.
@@ -223,31 +244,53 @@ export function MaintenanceTrendModule() {
                 : p.kind === 'unreliable'
                   ? 'UNRELIABLE'
                   : 'OK'
+            const isOpen = openMaintenanceWindow === p.date
             return (
-              <div
-                key={p.date}
-                style={{ display: 'contents' }}
-                title={
-                  outlier
-                    ? 'Gated and plausible on its own, but far off the median of the rest of the series — kept out of the drift maths and the calc-2 reference.'
-                    : p.kind !== 'ok'
-                      ? p.note
-                      : undefined
-                }
-              >
-                <span style={{ color: 'var(--text-dim)' }}>{weekCommencingLabel(p.date)}</span>
-                <span style={{ color: p.maintenance == null ? 'var(--text-muted)' : 'var(--text-secondary)', textAlign: 'right' }}>
-                  {p.maintenance == null ? '—' : `${p.maintenance}`}
-                </span>
-                <span
-                  style={{
-                    color: outlier ? 'var(--amber)' : p.kind === 'ok' ? 'var(--accent-text)' : 'var(--text-muted)',
-                    whiteSpace: 'nowrap',
-                    letterSpacing: '0.02em',
+              <div key={p.date} style={{ display: 'contents' }}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => dispatch({ type: 'TOGGLE_MAINTENANCE_WINDOW', date: p.date })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') dispatch({ type: 'TOGGLE_MAINTENANCE_WINDOW', date: p.date })
                   }}
+                  style={{ display: 'contents', cursor: 'pointer' }}
+                  title={
+                    outlier
+                      ? 'Gated and plausible on its own, but far off the median of the rest of the series — kept out of the drift maths and the calc-2 reference.'
+                      : p.kind !== 'ok'
+                        ? p.note
+                        : undefined
+                  }
                 >
-                  {status}
-                </span>
+                  <span style={{ color: 'var(--text-dim)' }}>{weekCommencingLabel(p.date)}</span>
+                  <span style={{ color: p.maintenance == null ? 'var(--text-muted)' : 'var(--text-secondary)', textAlign: 'right' }}>
+                    {p.maintenance == null ? '—' : `${p.maintenance}`}
+                  </span>
+                  <span
+                    style={{
+                      color: outlier ? 'var(--amber)' : p.kind === 'ok' ? 'var(--accent-text)' : 'var(--text-muted)',
+                      whiteSpace: 'nowrap',
+                      letterSpacing: '0.02em',
+                    }}
+                  >
+                    {status}
+                  </span>
+                  <span style={{ color: 'var(--text-disabled)', textAlign: 'right' }}>{isOpen ? '▾' : '▸'}</span>
+                </div>
+                {isOpen && (
+                  <div
+                    style={{
+                      gridColumn: '1 / -1',
+                      marginTop: 4,
+                      marginBottom: 6,
+                      padding: '10px 0 2px',
+                      borderTop: '1px solid var(--divider)',
+                    }}
+                  >
+                    <ExpandedWindow date={p.date} entries={entries} nutrition={nutrition} phaseLog={phaseLog} />
+                  </div>
+                )}
               </div>
             )
           })}

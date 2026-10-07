@@ -1,13 +1,13 @@
 import { diffDays, shortDate, today as todayIso } from '../../lib/dates'
-import { KCAL_PER_LB_GAIN, KCAL_PER_LB_LOSS, estimateMaintenance } from '../../lib/energy'
-import { fitQualityLabel, leastSquaresFit, phaseSpans, type FitResult } from '../../lib/math'
+import { KCAL_PER_LB_GAIN, KCAL_PER_LB_LOSS, estimateMaintenance, type MaintenanceEstimate, type NutritionEntry } from '../../lib/energy'
+import { fitQualityLabel, leastSquaresFit, phaseSpans, type Entry, type FitResult, type PhaseLogEntry } from '../../lib/math'
 import { useApp } from '../../store/AppContext'
 
-// Lab module — "how today's number is built". Home's Energy card only ever shows the *result* of
-// estimateMaintenance() for the current window; this module reuses that exact same call (no new
-// formula, no tunables — always the same 28-day-or-phase-clamped window Home uses) and renders
-// the raw inputs and arithmetic that produced it, so the number can be checked by hand. Additive
-// and Lab-only: Home/EnergyCard.tsx is untouched.
+// Trends/Energy module — "how a window's number is built". Home's Energy card only ever shows
+// the *result* of estimateMaintenance() for the current window; this module reuses that exact
+// same call (no new formula, no tunables) and renders the raw inputs and arithmetic that produced
+// it, so the number can be checked by hand. The reusable chart+arithmetic piece (WindowBreakdown)
+// is also used by MaintenanceTrendModule to expand an arbitrary historical window inline.
 
 const MONO = '"IBM Plex Mono", monospace'
 const COND = '"Barlow Condensed", sans-serif'
@@ -143,14 +143,24 @@ function WindowChart({
   )
 }
 
-export function CurrentWindowModule() {
-  const { state } = useApp()
-  const { entries, nutrition, phaseLog } = state
-  const today = todayIso()
+export interface WindowBreakdownProps {
+  /** A MaintenanceEstimate for the window being shown — from estimateMaintenance(), for either
+   * today (CurrentWindowModule) or an arbitrary past window-end date (a tapped #8 series row). */
+  est: MaintenanceEstimate
+  /** The `today` date that was passed to estimateMaintenance() to produce `est` — the window's
+   * end date. Named distinctly from "today" since it's frequently a past date. */
+  windowEnd: string
+  entries: Entry[]
+  nutrition: NutritionEntry[]
+  phaseLog: PhaseLogEntry[]
+}
 
-  const est = estimateMaintenance(entries, nutrition, phaseLog, today)
-
-  const inWindow = (d: string) => d >= est.windowStart && d <= today
+/** The reusable "chart + worked arithmetic" piece behind any one maintenance-estimate window —
+ * shared by CurrentWindowModule (always today's window) and MaintenanceTrendModule's per-row
+ * drill-down (any window in the #8 series). Takes the MaintenanceEstimate plus the raw data
+ * needed to rebuild the chart's points for that window's own [windowStart, windowEnd] range. */
+export function WindowBreakdown({ est, windowEnd, entries, nutrition, phaseLog }: WindowBreakdownProps) {
+  const inWindow = (d: string) => d >= est.windowStart && d <= windowEnd
   const weightPts: WeightPt[] = entries
     .filter((e) => inWindow(e.date))
     .map((e) => ({ date: e.date, x: diffDays(est.windowStart, e.date), y: e.lbs }))
@@ -169,11 +179,11 @@ export function CurrentWindowModule() {
     : null
   const localMeanIntake = calPts.length ? calPts.reduce((s, p) => s + p.kcal, 0) / calPts.length : null
 
-  const totalDays = Math.max(0, diffDays(est.windowStart, today))
+  const totalDays = Math.max(0, diffDays(est.windowStart, windowEnd))
 
   // Same phase lookup estimateMaintenance() uses internally to pick kcal/lb — recomputed here
   // (not returned by the estimate) so the arithmetic below can name which value was used and why.
-  const lastSpan = phaseSpans(phaseLog).filter((s) => s.start <= today).slice(-1)[0]
+  const lastSpan = phaseSpans(phaseLog).filter((s) => s.start <= windowEnd).slice(-1)[0]
   const gaining = lastSpan ? lastSpan.dir === 'Bulk' : (est.weightChangeLbs ?? 0) > 0
   const kcalPerLb = gaining ? KCAL_PER_LB_GAIN : KCAL_PER_LB_LOSS
   const phaseSource = lastSpan ? `${lastSpan.dir} phase` : 'no phase history — using observed direction'
@@ -182,11 +192,8 @@ export function CurrentWindowModule() {
 
   return (
     <div>
-      <div style={{ font: `700 15px/1 ${COND}`, color: 'var(--accent)' }}>Current window</div>
-      <div style={{ marginTop: 2 }}>{label("How today's number is built")}</div>
-
-      <div style={{ marginTop: 8, font: `500 9.5px/1.5 ${MONO}`, color: 'var(--text-dim)' }}>
-        {shortDate(est.windowStart)} → {shortDate(today)} ({totalDays + 1} days)
+      <div style={{ font: `500 9.5px/1.5 ${MONO}`, color: 'var(--text-dim)' }}>
+        {shortDate(est.windowStart)} → {shortDate(windowEnd)} ({totalDays + 1} days)
       </div>
 
       <div style={{ marginTop: 6, display: 'flex', gap: 12 }}>
@@ -253,6 +260,27 @@ export function CurrentWindowModule() {
           </div>
         )
       )}
+    </div>
+  )
+}
+
+/** Thin wrapper: always today's window via estimateMaintenance(), rendered through the shared
+ * WindowBreakdown. */
+export function CurrentWindowModule() {
+  const { state } = useApp()
+  const { entries, nutrition, phaseLog } = state
+  const today = todayIso()
+
+  const est = estimateMaintenance(entries, nutrition, phaseLog, today)
+
+  return (
+    <div>
+      <div style={{ font: `700 15px/1 ${COND}`, color: 'var(--accent)' }}>Current window</div>
+      <div style={{ marginTop: 2 }}>{label("How today's number is built")}</div>
+
+      <div style={{ marginTop: 8 }}>
+        <WindowBreakdown est={est} windowEnd={today} entries={entries} nutrition={nutrition} phaseLog={phaseLog} />
+      </div>
     </div>
   )
 }

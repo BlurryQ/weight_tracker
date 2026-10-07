@@ -169,6 +169,10 @@ export function Today() {
         phaseLog={phaseLog}
         weeklyTargetLbs={weeklyTarget}
         today={today}
+        onSeeCalculation={() => {
+          dispatch({ type: 'SET_TRENDS_VIEW', view: 'energy' })
+          dispatch({ type: 'SET_SCREEN', screen: 'trends' })
+        }}
       />
 
       <button
