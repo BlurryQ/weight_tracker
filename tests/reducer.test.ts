@@ -234,3 +234,40 @@ describe('reducer — TAP_KEY (keypad overtype)', () => {
     expect(emptyDay.keypadPristine).toBe(false)
   })
 })
+
+describe('reducer — SET_TRENDS_VIEW', () => {
+  it('sets trendsView, defaulting to weight', () => {
+    const state = initialState()
+    expect(state.trendsView).toBe('weight')
+
+    const next = reducer(state, { type: 'SET_TRENDS_VIEW', view: 'energy' })
+    expect(next.trendsView).toBe('energy')
+
+    const back = reducer(next, { type: 'SET_TRENDS_VIEW', view: 'weight' })
+    expect(back.trendsView).toBe('weight')
+  })
+})
+
+describe('reducer — TOGGLE_MAINTENANCE_WINDOW', () => {
+  it('opens a closed row and closes it again on a second toggle of the same date', () => {
+    const state = initialState()
+    const opened = reducer(state, { type: 'TOGGLE_MAINTENANCE_WINDOW', date: '2026-08-03' })
+    expect(opened.openMaintenanceWindow).toBe('2026-08-03')
+
+    const closed = reducer(opened, { type: 'TOGGLE_MAINTENANCE_WINDOW', date: '2026-08-03' })
+    expect(closed.openMaintenanceWindow).toBe(null)
+  })
+
+  it('switches to a different row rather than opening both at once', () => {
+    const state = { ...initialState(), openMaintenanceWindow: '2026-08-03' }
+    const next = reducer(state, { type: 'TOGGLE_MAINTENANCE_WINDOW', date: '2026-08-17' })
+    expect(next.openMaintenanceWindow).toBe('2026-08-17')
+  })
+
+  it('is independent of openWeek — toggling one never touches the other', () => {
+    const state = { ...initialState(), openWeek: '2026-08-03' }
+    const next = reducer(state, { type: 'TOGGLE_MAINTENANCE_WINDOW', date: '2026-08-03' })
+    expect(next.openMaintenanceWindow).toBe('2026-08-03')
+    expect(next.openWeek).toBe('2026-08-03') // unchanged, not cleared by the other field's toggle
+  })
+})

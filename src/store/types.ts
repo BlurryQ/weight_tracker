@@ -37,6 +37,12 @@ export interface UiState {
    * keypad tap overtypes it instead of appending, like a pre-selected text field. */
   keypadPristine: boolean
   openWeek: string | null
+  /** Which #8 series row (MaintenanceTrendModule), if any, is expanded inline — same
+   * single-open-key pattern as `openWeek`, kept as its own field rather than reused: both are
+   * keyed on ISO Monday dates (the series shares History's week grid), so sharing one field would
+   * let a History week row and an unrelated Energy-trend series row expand together just because
+   * they land on the same Monday. */
+  openMaintenanceWindow: string | null
   toast: string | null
   /** Set when the last sync attempt failed and writes remain queued. */
   syncFailed: boolean
@@ -50,6 +56,12 @@ export interface UiState {
   /** The phase/phaseStart/phaseLog a COMMIT_PHASE_CHANGE just replaced, kept just long enough
    * for UNDO_PHASE_CHANGE to restore it (cleared together with the toast that offers it). */
   phaseUndo: { phase: PhaseName; phaseStart: string; phaseLog: PhaseLogEntry[] } | null
+  /** Trends' Weight/Energy mode — global (not component) state because Home's Energy card needs
+   * to set it from outside when it navigates to Trends. Local-only: deliberately not in
+   * PersistedState/PERSISTED_KEYS, same "don't sync this" call already made for the PHASE
+   * fit-span toggle, just promoted from component state to UiState since it now has to survive a
+   * screen change. */
+  trendsView: 'weight' | 'energy'
 }
 
 export type AppState = PersistedState & UiState
@@ -89,11 +101,13 @@ export function initialState(): AppState {
     keypadValue: '',
     keypadPristine: false,
     openWeek: null,
+    openMaintenanceWindow: null,
     toast: null,
     syncFailed: false,
     pullFailed: false,
     hydrated: false,
     pendingPhase: null,
     phaseUndo: null,
+    trendsView: 'weight',
   }
 }
