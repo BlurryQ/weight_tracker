@@ -229,11 +229,16 @@ export function WindowBreakdown({ est, windowEnd, entries, nutrition, phaseLog }
               const meanIntake = est.meanIntake as number
               const spanDays = est.windowDays
               const ratePerWeek = (weightChangeLbs / spanDays) * 7
-              const deficitPerDay = -(weightChangeLbs * kcalPerLb) / spanDays
               const changeWord = weightChangeLbs < 0 ? 'Lost' : weightChangeLbs > 0 ? 'Gained' : 'Held'
-              const opWord = deficitPerDay >= 0 ? 'deficit' : 'surplus'
-              const opSign = deficitPerDay >= 0 ? '+' : '−'
-              const opMag = Math.round(Math.abs(deficitPerDay))
+              // Derived from the *displayed* intake/maintenance (both already rounded), not the
+              // raw deficitPerDay — so "intake ± opMag = maintenance" is true by construction.
+              // est.maintenance is rounded to the nearest 10 while intake/opMag round to the
+              // nearest 1, so independently rounding each term (the original approach here) could
+              // show an equation that doesn't actually add up, defeating the point of this module.
+              const diff = (est.maintenance as number) - Math.round(meanIntake)
+              const opWord = diff >= 0 ? 'deficit' : 'surplus'
+              const opSign = diff >= 0 ? '+' : '−'
+              const opMag = Math.abs(diff)
               return (
                 <div style={{ marginTop: 6, font: `500 11px/1.7 ${MONO}`, color: 'var(--text-secondary)' }}>
                   {changeWord} <strong style={{ color: 'var(--text-primary)' }}>{Math.abs(weightChangeLbs).toFixed(1)} lb</strong> over{' '}
