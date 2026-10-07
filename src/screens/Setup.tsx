@@ -315,14 +315,15 @@ export function Setup() {
               )}
             </div>
             <div style={{ marginTop: 8, font: '500 10px/1.5 "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
-              Reads your daily calorie totals from Health Connect, which MyFitnessPal writes to.
-              Powers maintenance and target-intake on Trends, and the per-day figures in History.
+              Reads your daily calorie totals from Health Connect — the system-level store that
+              your calorie-tracking app (Cronometer, Lose It!, etc.) writes to. Powers
+              maintenance and target-intake on Trends, and the per-day figures in History.
             </div>
           </>
         ) : (
           <div style={{ marginTop: 8, font: '500 10px/1.5 "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
-            Android only — calories sync from MyFitnessPal through Health Connect, which isn't
-            available on this platform.
+            Android only — calories sync from your calorie-tracking app through Health Connect,
+            which isn't available on this platform.
           </div>
         )}
       </div>
@@ -341,7 +342,7 @@ export function Setup() {
         </div>
       </div>
 
-      <div style={{ marginTop: 10, marginBottom: 20, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
+      <div style={{ marginTop: 10, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
         {sectionLabel('Data')}
         <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
           <DataStat label="Weigh-ins" value={String(entries.length)} />
@@ -349,11 +350,47 @@ export function Setup() {
           <DataStat label="Calorie days" value={String(nutrition.length)} />
         </div>
         {/* SOURCE ROW SLOT — e9 firms up the calorie-days wording and adds a "source" row here
-            (Health Connect / MyFitnessPal), once that lands. */}
+            (which calorie-tracking app fed Health Connect), once that lands. */}
         <div style={{ marginTop: 10, font: '500 10px/1.5 "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
           Synced to Supabase when online, cached locally otherwise.
         </div>
       </div>
+
+      {/* Lab — a staging screen for analytics still being validated. Reached only from here, not
+          the bottom nav, so it stays out of the everyday four-screen loop. */}
+      <button
+        type="button"
+        onClick={() => dispatch({ type: 'SET_SCREEN', screen: 'lab' })}
+        style={{
+          marginTop: 10,
+          marginBottom: 20,
+          width: '100%',
+          cursor: 'pointer',
+          padding: '13px 15px',
+          borderRadius: 14,
+          border: '1px solid var(--surface)',
+          background: 'var(--surface)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          textAlign: 'left',
+        }}
+      >
+        <span
+          style={{
+            font: '700 12px/1 "Barlow Condensed", sans-serif',
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          Open Lab
+        </span>
+        <span style={{ font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+          experimental analytics
+        </span>
+        <span style={{ marginLeft: 'auto', font: '500 13px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>→</span>
+      </button>
     </div>
   )
 }

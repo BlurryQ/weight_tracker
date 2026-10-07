@@ -22,7 +22,8 @@ import java.time.Period
 
 /**
  * Minimal Health Connect bridge: read-only access to daily calories-consumed totals, which is
- * all Weight Tracker needs from it (MyFitnessPal writes those totals into Health Connect).
+ * all Weight Tracker needs from it (whatever calorie-tracking app you use writes those totals
+ * into Health Connect).
  *
  * Deliberately not a general-purpose plugin — one permission, one query. The JS side is
  * src/data/healthConnect.ts.

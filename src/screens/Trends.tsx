@@ -17,11 +17,14 @@ import {
   type PhaseAnchorMode,
   type SignColor,
 } from '../lib/math'
+import { useState } from 'react'
 import { useApp } from '../store/AppContext'
 import type { TrendWindow } from '../store/types'
 import { WeightChart } from '../components/chart/WeightChart'
 import { ReachCard } from '../components/entry/ReachCard'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
+import { CurrentWindowModule } from './trends/CurrentWindowModule'
+import { MaintenanceTrendModule } from './trends/MaintenanceTrendModule'
 
 const SIGN_COLOR: Record<SignColor, string> = {
   lime: 'var(--sign-good)', // +/- deltas stay green/red, independent of the accent hue
@@ -29,11 +32,17 @@ const SIGN_COLOR: Record<SignColor, string> = {
   grey: 'var(--text-muted)',
 }
 
+const VIEW_OPTIONS: { value: 'weight' | 'energy'; label: string }[] = [
+  { value: 'weight', label: 'Weight' },
+  { value: 'energy', label: 'Energy' },
+]
+
 const WINDOW_OPTIONS: { value: TrendWindow | 'phase'; label: string }[] = [
   { value: 8, label: '8W' },
   { value: 13, label: '3M' },
   { value: 26, label: '6M' },
-  { value: 99, label: 'ALL' },
+  { value: 52, label: '1Y' },
+  { value: 99, label: 'ALLTIME' },
   { value: 'phase', label: 'PHASE' },
 ]
 
@@ -41,6 +50,47 @@ const ANCHOR_LABELS: Record<PhaseAnchorMode, string> = {
   phaseStart: 'this phase',
   lastDeload: 'last deload',
   lastMaintain: 'last maintain',
+}
+
+/** PHASE mode's fit-span choice: 'recent' keeps the fit capped at 13 trailing weeks so it
+ * reflects current pace; 'wholePhase' fits every displayed (i.e. current-phase) point instead —
+ * see the fitK computation in Trends() for exactly how each maps to a fit length. Local UI state
+ * only, deliberately not persisted — see the module-level comment on FIT_SPAN_LABELS' consumer. */
+type FitSpanMode = 'recent' | 'wholePhase'
+
+const FIT_SPAN_LABELS: Record<FitSpanMode, string> = {
+  recent: 'recent',
+  wholePhase: 'whole phase',
+}
+
+/** A thin single-line fit-span picker — same visual pattern as PhaseAnchorLine, appears only
+ * alongside it in PHASE mode. Lets the fit line switch between the capped-at-13-week "recent"
+ * rate (the default, matching every other window chip's intent) and an uncapped fit over the
+ * entire current phase. */
+function FitSpanLine({ mode, onChange }: { mode: FitSpanMode; onChange: (mode: FitSpanMode) => void }) {
+  const modes = ['recent', 'wholePhase'] as const
+
+  return (
+    <div style={{ marginTop: 6, display: 'flex', alignItems: 'baseline', gap: 5, lineHeight: '18px', whiteSpace: 'nowrap' }}>
+      <span style={{ font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>fit:</span>
+      {modes.map((m, i) => (
+        <span key={m} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>
+          <button
+            type="button"
+            onClick={() => onChange(m)}
+            style={{
+              cursor: 'pointer',
+              font: mode === m ? '700 10px "IBM Plex Mono", monospace' : '500 10px "IBM Plex Mono", monospace',
+              color: mode === m ? 'var(--accent)' : 'var(--text-dim)',
+            }}
+          >
+            {FIT_SPAN_LABELS[m]}
+          </button>
+          {i < modes.length - 1 && <span style={{ color: 'var(--text-dim)' }}>·</span>}
+        </span>
+      ))}
+    </div>
+  )
 }
 
 /** A thin single-line anchor picker — appears only while PHASE is the active window segment.
@@ -103,8 +153,13 @@ function StatCard({ label, value, color, note }: { label: string; value: string;
 
 export function Trends() {
   const { state, dispatch } = useApp()
-  const { entries, phase, phaseLog, unit, trendWindow, trendWindowMode, solveMode, targetLbs, targetWeeks } = state
+  const { entries, phase, phaseLog, unit, trendWindow, trendWindowMode, solveMode, targetLbs, targetWeeks, trendsView } = state
   const today = todayIso()
+
+  // Local-only: which fit span PHASE mode uses. Not persisted (no store field, no localStorage/
+  // Supabase key) — resets to 'recent' on every mount, matching every window chip's default fit
+  // behavior unless the user actively opts into 'wholePhase' this session.
+  const [fitSpanMode, setFitSpanMode] = useState<FitSpanMode>('recent')
 
   const weekly = weeklyAverages(entries)
   const dir = currentDir(phase, phaseLog)
@@ -112,7 +167,9 @@ export function Trends() {
 
   // The main chart's window: either the fixed chip count, or a span anchored to a phase-log
   // event (see phaseAnchoredShowN). fitK follows the same halving rule either way, capped at 13
-  // under phase-anchor mode so the fit line stays recent rather than spanning a whole cut/bulk.
+  // under phase-anchor mode so the fit line stays recent rather than spanning a whole cut/bulk —
+  // unless fitSpanMode is 'wholePhase', which drops both the halving and the cap entirely and
+  // fits every displayed (i.e. current-phase) point instead.
   const showN =
     trendWindowMode === 'weeks' ? trendWindow : phaseAnchoredShowN(weekly, phaseLog, trendWindowMode)
   const fitK =
@@ -120,7 +177,9 @@ export function Trends() {
       ? trendWindow === 99
         ? weekly.length
         : Math.max(4, Math.round(trendWindow / 2))
-      : Math.min(13, Math.max(4, Math.round(showN / 2)))
+      : fitSpanMode === 'wholePhase'
+        ? showN
+        : Math.min(13, Math.max(4, Math.round(showN / 2)))
 
   // Reach tracks the selected window's own slope — the same phase-scoped fit the FIT SLOPE card
   // and the chart's trend line use (geometry.slope) — rather than a fixed 4-week rate, so the
@@ -184,77 +243,103 @@ export function Trends() {
         </span>
       </div>
 
-      <div style={{ marginTop: 10, font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
-        {completion.logged}/{completion.possible} days · {completion.label}
-      </div>
-
-      <ReachCard
-        unit={unit}
-        solveMode={solveMode}
-        onSolveModeChange={(mode) => dispatch({ type: 'SET_SOLVE_MODE', mode })}
-        targetLbs={targetLbs}
-        targetWeeks={targetWeeks}
-        onEditTarget={() => dispatch({ type: 'OPEN_SHEET', sheet: 'target' })}
-        onWeeksChange={(weeks) => dispatch({ type: 'SET_TARGET_WEEKS', value: weeks })}
-        current={current}
-        slopeLbs={toLbs(geometry.slope, unit)}
-        weightResult={weightResult}
-        dateResult={dateResult}
-      />
-
-      <div style={{ marginTop: 20 }}>
-        <WeightChart geometry={geometry} W={316} H={184} gutter={32} variant="trends" />
-      </div>
-
-      <div style={{ marginTop: 20 }}>
-        <span
-          style={{
-            font: '600 9.5px/1 "Barlow Condensed", sans-serif',
-            letterSpacing: '0.2em',
-            textTransform: 'uppercase',
-            color: 'var(--text-dim)',
-          }}
-        >
-          Window
-        </span>
-      </div>
-
-      <div style={{ marginTop: 8 }}>
+      <div style={{ marginTop: 10 }}>
         <SegmentedControl
           size="lg"
-          value={trendWindowMode === 'weeks' ? trendWindow : 'phase'}
-          onChange={(picked) => {
-            if (picked === 'phase') {
-              // Clicking PHASE while it's already the active segment leaves whichever anchor was
-              // picked alone — only a fresh weeks -> phase transition needs a default.
-              if (trendWindowMode === 'weeks') dispatch({ type: 'SET_TREND_WINDOW_MODE', mode: 'phaseStart' })
-            } else {
-              dispatch({ type: 'SET_TREND_WINDOW_MODE', mode: 'weeks' })
-              dispatch({ type: 'SET_TREND_WINDOW', window: picked })
-            }
-          }}
-          options={WINDOW_OPTIONS}
+          value={trendsView}
+          onChange={(view) => dispatch({ type: 'SET_TRENDS_VIEW', view })}
+          options={VIEW_OPTIONS}
         />
       </div>
 
-      {/* Collapses away entirely (no reserved space) outside PHASE mode. */}
-      {trendWindowMode !== 'weeks' && (
-        <PhaseAnchorLine
-          mode={trendWindowMode}
-          onChange={(mode) => dispatch({ type: 'SET_TREND_WINDOW_MODE', mode })}
-          available={anchorAvailable}
-        />
+      {trendsView === 'weight' ? (
+        <>
+          <div style={{ marginTop: 14, font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
+            {completion.logged}/{completion.possible} days · {completion.label}
+          </div>
+
+          <ReachCard
+            unit={unit}
+            solveMode={solveMode}
+            onSolveModeChange={(mode) => dispatch({ type: 'SET_SOLVE_MODE', mode })}
+            targetLbs={targetLbs}
+            targetWeeks={targetWeeks}
+            onEditTarget={() => dispatch({ type: 'OPEN_SHEET', sheet: 'target' })}
+            onWeeksChange={(weeks) => dispatch({ type: 'SET_TARGET_WEEKS', value: weeks })}
+            current={current}
+            slopeLbs={toLbs(geometry.slope, unit)}
+            weightResult={weightResult}
+            dateResult={dateResult}
+          />
+
+          <div style={{ marginTop: 20 }}>
+            <WeightChart geometry={geometry} W={316} H={184} gutter={32} variant="trends" />
+          </div>
+
+          <div style={{ marginTop: 20 }}>
+            <span
+              style={{
+                font: '600 9.5px/1 "Barlow Condensed", sans-serif',
+                letterSpacing: '0.2em',
+                textTransform: 'uppercase',
+                color: 'var(--text-dim)',
+              }}
+            >
+              Window
+            </span>
+          </div>
+
+          <div style={{ marginTop: 8 }}>
+            <SegmentedControl
+              size="lg"
+              value={trendWindowMode === 'weeks' ? trendWindow : 'phase'}
+              onChange={(picked) => {
+                if (picked === 'phase') {
+                  // Clicking PHASE while it's already the active segment leaves whichever anchor
+                  // was picked alone — only a fresh weeks -> phase transition needs a default.
+                  if (trendWindowMode === 'weeks') dispatch({ type: 'SET_TREND_WINDOW_MODE', mode: 'phaseStart' })
+                } else {
+                  dispatch({ type: 'SET_TREND_WINDOW_MODE', mode: 'weeks' })
+                  dispatch({ type: 'SET_TREND_WINDOW', window: picked })
+                }
+              }}
+              options={WINDOW_OPTIONS}
+            />
+          </div>
+
+          {/* Both collapse away entirely (no reserved space) outside PHASE mode. */}
+          {trendWindowMode !== 'weeks' && (
+            <>
+              <PhaseAnchorLine
+                mode={trendWindowMode}
+                onChange={(mode) => dispatch({ type: 'SET_TREND_WINDOW_MODE', mode })}
+                available={anchorAvailable}
+              />
+              <FitSpanLine mode={fitSpanMode} onChange={setFitSpanMode} />
+            </>
+          )}
+
+          <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+            <StatCard label="Change" value={sgn(change)} color={SIGN_COLOR[signColor(toLbs(change, unit), dir)]} />
+            <StatCard
+              label="Fit slope"
+              value={sgn(geometry.slope, 2) + '/wk'}
+              color={SIGN_COLOR[signColor(toLbs(geometry.slope, unit), dir)]}
+            />
+            <StatCard label="R²" value={geometry.r2.toFixed(2)} note={fitQualityLabel(geometry.r2)} />
+          </div>
+        </>
+      ) : (
+        <>
+          <section style={{ marginTop: 14, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
+            <CurrentWindowModule />
+          </section>
+
+          <section style={{ marginTop: 14, padding: '14px 15px', borderRadius: 14, background: 'var(--surface)' }}>
+            <MaintenanceTrendModule />
+          </section>
+        </>
       )}
-
-      <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-        <StatCard label="Change" value={sgn(change)} color={SIGN_COLOR[signColor(toLbs(change, unit), dir)]} />
-        <StatCard
-          label="Fit slope"
-          value={sgn(geometry.slope, 2) + '/wk'}
-          color={SIGN_COLOR[signColor(toLbs(geometry.slope, unit), dir)]}
-        />
-        <StatCard label="R²" value={geometry.r2.toFixed(2)} note={fitQualityLabel(geometry.r2)} />
-      </div>
     </div>
   )
 }

@@ -1,13 +1,13 @@
 import { diffDays, mondayOf, shortDate, today as todayIso } from '../lib/dates'
 import { formatWeight, sgn, toDisplay, unitLabel } from '../lib/format'
 import { avg, currentDir, currentStreak, fitSlope, lastCompletedWeek, signColor, weeklyAverages } from '../lib/math'
+import { deadLetterCount } from '../data/queue'
 import { useApp } from '../store/AppContext'
 import { Chip } from '../components/ui/Chip'
 import { RateBar } from './today/RateBar'
 import { DayStrip } from './today/DayStrip'
 import { EnergyCard } from './today/EnergyCard'
 import { StatCards } from './today/StatCards'
-import { WeeklyChangeBars } from './today/WeeklyChangeBars'
 
 const SIGN_COLOR = { lime: 'var(--sign-good)', red: 'var(--sign-bad)', grey: 'var(--text-muted)' } as const
 
@@ -23,8 +23,17 @@ const CHIP_COLORS = {
 
 export function Today() {
   const { state, dispatch } = useApp()
-  const { entries, nutrition, phase, phaseStart, phaseLog, weeklyTarget, unit } = state
+  const { entries, nutrition, phase, phaseStart, phaseLog, weeklyTarget, unit, syncFailed, pullFailed } = state
   const today = todayIso()
+  const stuck = deadLetterCount()
+  const syncBad = syncFailed || pullFailed || stuck > 0
+  const syncMessage = pullFailed
+    ? "Couldn't load from the server — showing this device's copy"
+    : stuck > 0
+      ? `${stuck} change${stuck === 1 ? '' : 's'} rejected by the server`
+      : syncFailed
+        ? 'Changes saved on this device, not yet synced'
+        : 'Synced'
 
   if (entries.length === 0) {
     return (
@@ -77,7 +86,26 @@ export function Today() {
           onClick={() => dispatch({ type: 'SET_SCREEN', screen: 'setup' })}
           className="accent-el"
         />
-        <span style={{ font: '500 11px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>{shortDate(today)}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <button
+            type="button"
+            aria-label={syncMessage}
+            title={syncMessage}
+            onClick={() => dispatch({ type: 'SHOW_TOAST', message: syncMessage })}
+            style={{ padding: 4, margin: -4, background: 'none', border: 0, cursor: 'pointer', display: 'inline-flex' }}
+          >
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background: syncBad ? 'var(--sign-bad)' : 'var(--sign-good)',
+                display: 'inline-block',
+              }}
+            />
+          </button>
+          <span style={{ font: '500 11px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>{shortDate(today)}</span>
+        </span>
       </div>
 
       <div style={{ marginTop: 8, font: '500 10px "IBM Plex Mono", monospace', color: 'var(--text-dim)' }}>
@@ -135,14 +163,16 @@ export function Today() {
         />
       </div>
 
-      <WeeklyChangeBars weekly={weekly} dir={dir} />
-
       <EnergyCard
         entries={entries}
         nutrition={nutrition}
         phaseLog={phaseLog}
         weeklyTargetLbs={weeklyTarget}
         today={today}
+        onSeeCalculation={() => {
+          dispatch({ type: 'SET_TRENDS_VIEW', view: 'energy' })
+          dispatch({ type: 'SET_SCREEN', screen: 'trends' })
+        }}
       />
 
       <button

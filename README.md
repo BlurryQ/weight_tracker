@@ -4,9 +4,9 @@ A single-purpose weight-tracking PWA for cut / bulk cycles. Log a weigh-in in on
 progress by the 7-day rolling average, never the noisy daily number. Four screens, each with one
 job — where am I, what if, what happened, the rules — over an ink-black "Neon" theme.
 
-On Android it also reads your daily calories from MyFitnessPal (via Health Connect) and turns the
-weight trend plus intake into an adaptive-TDEE maintenance estimate and a calorie target for your
-weekly goal.
+On Android it also reads your daily calories from Health Connect — written there by whatever
+calorie-tracking app you use (Cronometer, Lose It!, etc.) — and turns the weight trend plus
+intake into an adaptive-TDEE maintenance estimate and a calorie target for your weekly goal.
 
 Ships as a web PWA and as a native Android app via Capacitor.
 
@@ -52,7 +52,8 @@ holding — cross-fading on a phase change with a one-shot shimmer across the co
 - **Capacitor** wraps the same web build as a native Android app.
 - **Health Connect** (Android only) through a small custom Kotlin plugin
   (`android/app/src/main/java/com/blurryq/weighttracker/HealthConnectPlugin.kt`) reads
-  MyFitnessPal's daily calorie totals; the energy-balance math is in `src/lib/energy.ts`.
+  daily calorie totals logged by whatever calorie-tracking app you use; the energy-balance math
+  is in `src/lib/energy.ts`.
 - Charts are hand-rolled inline SVG (`src/lib/chartGeometry.ts` + `src/components/chart/`) — no
   charting library.
 
@@ -69,7 +70,8 @@ src/
 tests/        vitest, run against a fixture of 317 real weigh-ins (tests/fixtures/weight-data.ts)
 supabase/
   migrations/ 0001 schema (entries, phase_log, settings + RLS), 0004 daily_nutrition,
-              0006-0007 Trends' phase-anchored window mode, 0008 drops dead columns
+              0006-0007 Trends' phase-anchored window mode, 0008 drops dead columns,
+              0009 allows trend_window = 52 (the 1Y chip)
 android/      Capacitor-generated native project
 ```
 

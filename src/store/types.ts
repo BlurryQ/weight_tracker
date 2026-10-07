@@ -1,17 +1,17 @@
 import type { NutritionEntry } from '../lib/energy'
 import type { Entry, PhaseLogEntry, PhaseName, TrendWindowMode } from '../lib/math'
 
-export type Screen = 'today' | 'trends' | 'history' | 'setup'
+export type Screen = 'today' | 'trends' | 'history' | 'setup' | 'lab'
 export type Unit = 'lb' | 'kg'
 export type SolveMode = 'weight' | 'date'
-export type TrendWindow = 8 | 13 | 26 | 99
+export type TrendWindow = 8 | 13 | 26 | 52 | 99
 export type { TrendWindowMode }
 
 /** State persisted to local cache and, once synced, to Supabase. */
 export interface PersistedState {
   entries: Entry[]
-  /** Daily calories-consumed totals from Health Connect (MyFitnessPal writes them there).
-   * Read-through cache of the `daily_nutrition` table; empty on platforms without Health
+  /** Daily calories-consumed totals from Health Connect (your calorie-tracking app writes them
+   * there). Read-through cache of the `daily_nutrition` table; empty on platforms without Health
    * Connect. */
   nutrition: NutritionEntry[]
   phase: PhaseName
@@ -37,9 +37,17 @@ export interface UiState {
    * keypad tap overtypes it instead of appending, like a pre-selected text field. */
   keypadPristine: boolean
   openWeek: string | null
+  /** Which #8 series row (MaintenanceTrendModule), if any, is expanded inline — same
+   * single-open-key pattern as `openWeek`, kept as its own field rather than reused: both are
+   * keyed on ISO Monday dates (the series shares History's week grid), so sharing one field would
+   * let a History week row and an unrelated Energy-trend series row expand together just because
+   * they land on the same Monday. */
+  openMaintenanceWindow: string | null
   toast: string | null
   /** Set when the last sync attempt failed and writes remain queued. */
   syncFailed: boolean
+  /** Set when the last remote pull (boot, or a foreground/online retry) failed. */
+  pullFailed: boolean
   /** True once the initial local/remote hydration has completed. */
   hydrated: boolean
   /** A phase tapped on Setup's grid but not yet committed — STAGE_PHASE sets this,
@@ -48,6 +56,12 @@ export interface UiState {
   /** The phase/phaseStart/phaseLog a COMMIT_PHASE_CHANGE just replaced, kept just long enough
    * for UNDO_PHASE_CHANGE to restore it (cleared together with the toast that offers it). */
   phaseUndo: { phase: PhaseName; phaseStart: string; phaseLog: PhaseLogEntry[] } | null
+  /** Trends' Weight/Energy mode — global (not component) state because Home's Energy card needs
+   * to set it from outside when it navigates to Trends. Local-only: deliberately not in
+   * PersistedState/PERSISTED_KEYS, same "don't sync this" call already made for the PHASE
+   * fit-span toggle, just promoted from component state to UiState since it now has to survive a
+   * screen change. */
+  trendsView: 'weight' | 'energy'
 }
 
 export type AppState = PersistedState & UiState
@@ -87,10 +101,13 @@ export function initialState(): AppState {
     keypadValue: '',
     keypadPristine: false,
     openWeek: null,
+    openMaintenanceWindow: null,
     toast: null,
     syncFailed: false,
+    pullFailed: false,
     hydrated: false,
     pendingPhase: null,
     phaseUndo: null,
+    trendsView: 'weight',
   }
 }

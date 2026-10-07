@@ -3,9 +3,10 @@ import { formatKcal } from '../src/lib/format'
 import { weeklyKcal, type NutritionEntry } from '../src/lib/energy'
 import { WEIGHT_DATA_FIXTURE } from './fixtures/weight-data'
 
-/** History must never imply "0 calories" for a week MyFitnessPal didn't log — the whole
- * fixture predates the MFP connection, so with no nutrition every row is a no-data row. */
-describe('History calorie internals — no-MFP-data guard', () => {
+/** History must never imply "0 calories" for a week Health Connect didn't log — the whole
+ * fixture predates the Health Connect connection, so with no nutrition every row is a no-data
+ * row. */
+describe('History calorie internals — no-Health-Connect-data guard', () => {
   it('formatKcal renders an em dash for null / 0 / undefined, never "0"', () => {
     for (const v of [null, undefined, 0, -5, NaN]) {
       expect(formatKcal(v as number | null | undefined)).toBe('—')

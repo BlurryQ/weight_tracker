@@ -56,7 +56,7 @@ describe('formatWeekForClipboard', () => {
     expect(lines[2]).toMatch(/kg\/wk$/)
   })
 
-  it('weaves in an average-calories line and a per-day Cals line when the week has MFP data', () => {
+  it('weaves in an average-calories line and a per-day Cals line when the week has Health Connect data', () => {
     const text = formatWeekForClipboard({
       monday: '2026-08-24',
       weeklyLbs: 183.3,

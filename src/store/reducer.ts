@@ -30,6 +30,12 @@ export type Action =
   | { type: 'SET_TREND_WINDOW'; window: TrendWindow }
   | { type: 'SET_TREND_WINDOW_MODE'; mode: TrendWindowMode }
   | { type: 'TOGGLE_WEEK'; monday: string }
+  /** Toggles MaintenanceTrendModule's (#8 series) inline drill-down row — same single-open-key
+   * interaction as TOGGLE_WEEK, kept as its own action/field (openMaintenanceWindow) rather than
+   * reusing TOGGLE_WEEK/openWeek since both are keyed on the same Monday grid and would otherwise
+   * cross-open each other. */
+  | { type: 'TOGGLE_MAINTENANCE_WINDOW'; date: string }
+  | { type: 'SET_TRENDS_VIEW'; view: 'weight' | 'energy' }
   | { type: 'SET_SOLVE_MODE'; mode: SolveMode }
   | { type: 'SET_TARGET_LBS'; value: number }
   | { type: 'SAVE_TARGET'; value: number }
@@ -38,6 +44,7 @@ export type Action =
   | { type: 'CLEAR_TOAST' }
   | { type: 'HYDRATE'; state: Partial<PersistedState> }
   | { type: 'SET_SYNC_FAILED'; failed: boolean }
+  | { type: 'SET_PULL_FAILED'; failed: boolean }
 
 function withPhaseLogAppend(phaseLog: AppState['phaseLog'], start: string, name: PhaseName) {
   return dedupePhaseLog([...phaseLog, { start, name }])
@@ -188,6 +195,15 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'TOGGLE_WEEK':
       return { ...state, openWeek: state.openWeek === action.monday ? null : action.monday }
 
+    case 'TOGGLE_MAINTENANCE_WINDOW':
+      return {
+        ...state,
+        openMaintenanceWindow: state.openMaintenanceWindow === action.date ? null : action.date,
+      }
+
+    case 'SET_TRENDS_VIEW':
+      return { ...state, trendsView: action.view }
+
     case 'SET_SOLVE_MODE':
       return { ...state, solveMode: action.mode }
 
@@ -213,6 +229,9 @@ export function reducer(state: AppState, action: Action): AppState {
 
     case 'SET_SYNC_FAILED':
       return { ...state, syncFailed: action.failed }
+
+    case 'SET_PULL_FAILED':
+      return { ...state, pullFailed: action.failed }
 
     default:
       return state

@@ -2,23 +2,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 import { syncHealthConnect } from '../data/healthConnect'
 import { drainQueue, pullRemote, startAutoSync } from '../data/sync'
 import { loadSnapshot, saveSnapshot } from '../data/localCache'
-import { enqueue, type SettingsPayload } from '../data/queue'
+import { mergeRemote, settingsFrom } from '../data/merge'
+import { enqueue, peekAll } from '../data/queue'
 import { reducer, type Action } from './reducer'
 import { initialState, type AppState } from './types'
-
-function settingsFrom(state: AppState): SettingsPayload {
-  return {
-    phase: state.phase,
-    phaseStart: state.phaseStart,
-    weeklyTarget: state.weeklyTarget,
-    unit: state.unit,
-    trendWindow: state.trendWindow,
-    trendWindowMode: state.trendWindowMode,
-    solveMode: state.solveMode,
-    targetLbs: state.targetLbs,
-    targetWeeks: state.targetWeeks,
-  }
-}
 
 const SETTINGS_ACTION_TYPES = new Set<Action['type']>([
   'SET_WEEKLY_TARGET',
@@ -105,36 +92,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Boot: pull the remote snapshot once (if configured/signed in) and overwrite local state —
-  // single-user app, so last-fetch-wins is sufficient. Falls back to whatever the local cache
-  // (or seed data) already hydrated synchronously above.
+  // Boot: pull the remote snapshot (if configured/signed in) and merge it into local state —
+  // anything recorded locally survives, and local-only rows are queued for upload (see
+  // data/merge.ts). Falls back to whatever the local cache already hydrated synchronously above.
+  // Also retries on regained connectivity/foreground, same as the Health Connect sync and
+  // startAutoSync below — a boot-time failure (e.g. no network yet) would otherwise never get
+  // another attempt.
   useEffect(() => {
     let cancelled = false
-    void pullRemote().then((remote) => {
-      if (cancelled || !remote) return
-      reactDispatch({
-        type: 'HYDRATE',
-        state: {
-          entries: remote.entries,
-          nutrition: remote.nutrition,
-          phaseLog: remote.phaseLog,
-          ...(remote.settings ?? {}),
-        },
+    const run = () => {
+      void pullRemote((failed) => reactDispatch({ type: 'SET_PULL_FAILED', failed })).then((remote) => {
+        if (cancelled || !remote) return
+        // Read the queue and local state now, not before the fetch: writes made while it was in
+        // flight must count as pending / local, or the merge would clobber them.
+        const { state: merged, enqueue: toUpload } = mergeRemote(stateRef.current, remote, peekAll())
+        for (const op of toUpload) enqueue(op)
+        // Through the custom dispatch so the merged result is saved to the local snapshot and
+        // the freshly-queued uploads get drained.
+        dispatch({ type: 'HYDRATE', state: merged })
       })
-    })
+    }
+    run()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') run()
+    }
+    window.addEventListener('online', run)
+    document.addEventListener('visibilitychange', onVisible)
     return () => {
       cancelled = true
+      window.removeEventListener('online', run)
+      document.removeEventListener('visibilitychange', onVisible)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [dispatch])
 
   useEffect(() => {
     return startAutoSync((failed) => reactDispatch({ type: 'SET_SYNC_FAILED', failed }))
   }, [])
 
   // Pull recent daily calorie totals out of Health Connect on boot and whenever the app comes
-  // back to the foreground (MyFitnessPal may have logged more since). Goes through the custom
-  // `dispatch` so changed days are queued to Supabase. No-op off Android.
+  // back to the foreground (your calorie-tracking app may have logged more since). Goes through
+  // the custom `dispatch` so changed days are queued to Supabase. No-op off Android.
   useEffect(() => {
     const run = () => void syncHealthConnect(stateRef.current.nutrition, dispatch)
     run()
